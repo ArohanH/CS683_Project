@@ -1,0 +1,112 @@
+#include "cache.h"
+
+// ------------------------- DO NOT CHANGE -------------------------------- //
+#define IP_TRACKER_COUNT 64           // Number of IP trackers_table
+// ------------------------- DO NOT CHANGE -------------------------------- //
+
+#define PREFETCH_DEGREE 7             // Prefetch degree - you need to vary this!
+#define LOG2_IP_TRACKER_COUNT 6
+
+class IP_TRACKER {
+  public:
+    // ------------------------- Define the IP_TRACKER class here ------------------------- //
+    uint64_t address;
+    uint64_t ip;
+    int stride;
+    uint8_t state; //There will be total 4 states, RESET, INITIAL STATE, TRANSIENT STATE, CONFIDENT STATE
+    uint64_t counter; //counter for LRU Policy
+};
+
+IP_TRACKER trackers_table[IP_TRACKER_COUNT]; //This is assumed to have full associativty
+
+// ------------------------- Initialize the prefetcher ------------------------- // 
+void CACHE::stlb_prefetcher_initialize() 
+{
+	cout << "CPU " << cpu << " STLB arbitrary stride prefetcher" << endl;
+    for(int i=0;i<IP_TRACKER_COUNT;i++){
+        trackers_table[i].address=0;
+        trackers_table[i].state=0;//INITIAL STATE
+        trackers_table[i].ip=0;
+        trackers_table[i].stride=0;//(0) indicates no stride calculation before
+        trackers_table[i].counter=0;
+    }
+
+}
+
+// --------------- This is the main prefetcher operate function ---------------- // 
+void CACHE::stlb_prefetcher_operate(uint64_t addr, uint64_t ip, uint8_t cache_hit, uint8_t type, uint64_t prefetch_id, uint8_t instruction)
+{
+    // ------------------------ Add Arbitrary Stride pf_address logic here ----------------------- // 
+
+    // prefetch_translation(ip, pf_address, (int)2, 0, prefetch_id, instruction);
+    //uint64_t index=(ip)&(0x3F);
+    bool is_present=0;
+    int index=-1;
+    for(int i=0;i<IP_TRACKER_COUNT;i++){
+        if(trackers_table[i].ip!=0)
+            trackers_table[i].counter++;
+        if(trackers_table[i].ip==ip){
+            index=i;
+            is_present=1;
+            trackers_table[i].counter=0;
+        }
+    }
+    if(is_present){
+        if(trackers_table[index].state==0){
+            trackers_table[index].stride=(addr>>LOG2_PAGE_SIZE)-(trackers_table[index].address>>LOG2_PAGE_SIZE);
+            trackers_table[index].address=addr;
+            trackers_table[index].state=1;
+            return;
+        }
+        int new_stride=(addr>>LOG2_PAGE_SIZE)-(trackers_table[index].address>>LOG2_PAGE_SIZE);
+        if(trackers_table[index].stride==new_stride){
+            trackers_table[index].address=addr;
+            trackers_table[index].state++;
+            if(trackers_table[index].state>1){
+                for(int i=0;i<PREFETCH_DEGREE;i++){
+                    uint64_t pf_address=(((addr >> LOG2_PAGE_SIZE)+((i+1)*new_stride))<<LOG2_PAGE_SIZE);
+                    prefetch_translation(ip, pf_address, (int)2, 0, prefetch_id, instruction);
+                }
+            }
+        }
+        else{
+            trackers_table[index].state=1;
+            trackers_table[index].stride=(addr>>LOG2_PAGE_SIZE)-(trackers_table[index].address>>LOG2_PAGE_SIZE);
+            trackers_table[index].address=addr;
+        }
+    }
+    else{
+        //srand(time(0));
+        index=-1; 
+        int maximum=-1;
+        for(int i=0;i<IP_TRACKER_COUNT;i++){
+            if(trackers_table[i].ip==0){
+                index=i;
+                break;
+            }
+            if(trackers_table[i].counter>maximum){
+                maximum=trackers_table[i].counter;
+                index=i;
+            }
+        }
+        trackers_table[index].ip=ip;
+        trackers_table[index].address=addr;
+        trackers_table[index].stride=0;
+        trackers_table[index].state=0;
+        trackers_table[index].counter=0;
+    }
+    return;
+}
+
+// ------------------------- DO NOT CHANGE -------------------------------- //
+void CACHE::stlb_prefetcher_cache_fill(uint64_t addr, uint32_t set, uint32_t way, uint8_t prefetch, uint64_t evicted_addr, uint32_t metadata_in)
+{
+    return;
+}
+
+void CACHE::stlb_prefetcher_final_stats()
+{
+    cout << "CPU " << cpu << " STLB arbitrary stride prefetcher final stats" << endl;
+	cout << "Degree: " << PREFETCH_DEGREE << endl;
+}
+// ------------------------- DO NOT CHANGE -------------------------------- //

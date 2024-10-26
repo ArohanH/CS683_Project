@@ -1,0 +1,1724 @@
+// #include "cache.h"
+// #include "ooo_cpu.h"
+// //redo toggle
+// #define REDO_TOGGLE 0
+// // ------------------------- DO NOT CHANGE -------------------------------- //
+// #define NUM_IP_TABLE_L1_ENTRIES 1024  // IP table entries
+// #define IP_TRACKER_COUNT 64           // Number of IP trackers[cpu]
+// #define PREFETCH_DEGREE 5             // Prefetch degree
+// // ------------------------- DO NOT CHANGE -------------------------------- //
+// #define MAX_CONFIDENCE 7                   // Maximum confidence value
+// #define NUM_CSPT_ENTRIES 1<<8               // CSPT entries
+
+// #define PHASE_LENGTH 500000              // Choose an appropriate phase length
+// #define WORKING_PERIOD 100000           // Choose an appropriate working period
+
+// #define IP_STRIDE 1                   // IP-Stride Prefetcher
+// #define CPLX 2                        // Complex-Stride Prefetcher
+// #define NL 3                          // Next-line Prefetcher
+// #define TRAIN 1                       // Training mode
+// #define RUN 2                         // Running mode
+
+
+// bool warmup_over = false;             // To keep a track of the warmup phase
+// uint64_t num_prefs = 0;               // To keep a track of the number of prefetched lines, will be updated accordingly
+// uint64_t accm_prefs_useful = 0;        // To keep a track of the number of prefetched lines that were useful, will be updated accordingly
+// // Track the accuracy of the different prefetchers
+// double accuracy_ip=0;
+// double accuracy_cplx=0;
+// double accuracy_nl=0;
+
+// uint16_t prefetcher = IP_STRIDE;      // Start with the IP-Stride Prefetcher
+// int runstate = TRAIN;                   // Start running the prefetcher
+// int num_ips_useful = 0;                         // Number of IPs
+// int num_cplx_useful = 0;                     // Number of CPLXs
+// int num_nl_useful = 0;                       // Number of Next-line prefetches
+// int num_prefs_to_next_level_ip=0;
+// int num_prefs_to_next_level_cplx=0;
+// int num_prefs_to_next_level_nl=0;
+
+
+
+// // CSPT Entry
+// class CSPT_ENTRY {
+//   public:
+//     uint8_t signature;
+//     int stride;
+//     int conf;
+//     int counter;
+
+//     CSPT_ENTRY() {
+//         signature = 0;
+//         stride = 0;
+//         conf = 0;
+//         counter = 0;
+//     }
+// };
+
+// // ------------ YOU CAN CHANGE THE IP_TABLE FOR YOUR DESIGN ---------------- //
+// class IP_TABLE {
+//   public:
+//     uint8_t state; //There will be total 4 states, RESET, INITIAL STATE, TRANSIENT STATE, CONFIDENT STATE
+//     uint64_t prev_stride; // Previous stride for IP-stride variant (not for cplx)
+//     uint64_t address;                      // Address of the IP
+//     uint64_t ip_tag;
+//     uint16_t ip_valid;                      // Valid IP or not   
+//     uint8_t signature;                     // CPLX signature
+//     int counter;   // max value should be the size of the IP table
+//     CSPT_ENTRY cspt[NUM_CSPT_ENTRIES];
+//     IP_TABLE () {
+//         state=0;
+//         ip_tag = 0;
+//         ip_valid = 0;
+//         signature = 0;
+//         address=0;
+//         prev_stride = 0;
+//         counter = NUM_IP_TABLE_L1_ENTRIES-1;
+//         for (int i = 0; i < NUM_CSPT_ENTRIES; i++) {
+//             cspt[i] = CSPT_ENTRY();
+//         }
+//     };
+
+// };
+
+// IP_TABLE trackers[NUM_CPUS][NUM_IP_TABLE_L1_ENTRIES];
+
+
+// // ------------------------- Updating the signature ---------------------------- // 
+// uint8_t update_sig_l1(uint8_t old_sig, int delta) {                           
+//     uint8_t new_sig = ((old_sig << 1) ^ (uint16_t)delta);
+//     return new_sig;
+// }
+
+// // ------------------- Updating confidence for the CPLX class ------------------ // 
+// int update_conf(int stride, int pred_stride, int conf) {
+//     if (stride == pred_stride) {
+//         if (conf < MAX_CONFIDENCE)
+//             conf++;
+//     } else {
+//         if (conf > 0)
+//             conf--;
+//     }
+//     return conf;
+// }
+
+
+
+// // ------------------------- Initialize the prefetcher ------------------------- // 
+// void CACHE::l1d_prefetcher_initialize() 
+// {
+// 	cout << "CPU " << cpu << " L1D Optimized prefetcher" << endl;
+//     for (int i = 0; i < NUM_IP_TABLE_L1_ENTRIES; i++) {
+//         trackers[cpu][i] = IP_TABLE();
+//     }
+// }
+
+// // --------------- This is the main prefetcher operate function ---------------- // 
+// void CACHE::l1d_prefetcher_operate(uint64_t addr, uint64_t ip, uint8_t cache_hit, uint8_t type, uint8_t critical_ip_flag)
+// {
+//     uint64_t cl_addr = addr >> LOG2_BLOCK_SIZE;
+
+//     if(!warmup_over && warmup_complete[cpu] == 1){
+//         warmup_over = true;
+//         //
+//         accm_prefs_useful = this->pf_useful;
+//         cout << "Hello " << accm_prefs_useful << endl; 
+//         num_prefs = 0;
+//         prefetcher = IP_STRIDE;
+//         runstate = TRAIN;
+//     }
+
+//     if (warmup_complete[cpu] == 1) {
+
+//         if (num_prefs%WORKING_PERIOD == 0 && REDO_TOGGLE == 1) {
+            
+//             cout<< "TRAIN ACCURACY: " << accuracy_ip << " " << accuracy_cplx << " " << accuracy_nl << endl;
+//             cout<< "RUN ACCURACY: " << (double)(this->pf_useful - accm_prefs_useful)/(double)num_prefs << endl;
+//             runstate = TRAIN;
+//             prefetcher = IP_STRIDE;
+//             num_prefs = 0;
+//             accm_prefs_useful = this->pf_useful;
+
+//         }
+    
+//         if(runstate == TRAIN){
+//             if (prefetcher == IP_STRIDE) { 
+//                 // IP-Stride Prefetcher
+//                 // ------------------------ Add IP-Stride pf_address logic here ----------------------- // 
+//                 bool is_present=0;
+//                 int index=-1;
+//                 for(int i=0;i<NUM_IP_TABLE_L1_ENTRIES;i++){
+//                     if(trackers[cpu][i].ip_valid!=0)
+//                         trackers[cpu][i].counter = min(trackers[cpu][i].counter+1,NUM_IP_TABLE_L1_ENTRIES-1);
+//                     if(trackers[cpu][i].ip_tag==ip){
+//                         index=i;
+//                         is_present=1;
+//                         trackers[cpu][i].counter=0;
+//                     }
+//                 }
+//                 if(is_present){
+//                     if(trackers[cpu][index].state==0){
+//                         trackers[cpu][index].prev_stride=(addr>>LOG2_BLOCK_SIZE)-(trackers[cpu][index].address>>LOG2_BLOCK_SIZE);
+//                         trackers[cpu][index].address=addr;
+//                         trackers[cpu][index].state=1;
+//                         return;
+//                     }
+//                     int new_stride=(addr>>LOG2_BLOCK_SIZE)-(trackers[cpu][index].address>>LOG2_BLOCK_SIZE);
+//                     if(trackers[cpu][index].prev_stride==new_stride){
+//                         trackers[cpu][index].address=addr;
+//                         trackers[cpu][index].state++;
+//                         if(trackers[cpu][index].state>1){
+//                             for(int i=0;i<PREFETCH_DEGREE;i++){
+//                                 uint64_t pf_address=(((addr >> LOG2_BLOCK_SIZE)+((i+1)*new_stride))<<LOG2_BLOCK_SIZE);
+//                                 if ((pf_address >> LOG2_PAGE_SIZE) != (addr >> LOG2_PAGE_SIZE))
+//                                 break;
+//                                 prefetch_line(ip, addr, pf_address, FILL_L1, 0);
+//                                 num_prefs++;
+//                             }
+//                         }
+//                     }
+//                     else{
+//                         trackers[cpu][index].state=1;
+//                         trackers[cpu][index].prev_stride=(addr>>LOG2_BLOCK_SIZE)-(trackers[cpu][index].address>>LOG2_BLOCK_SIZE);
+//                         trackers[cpu][index].address=addr;
+//                     }
+//                 }
+//                 else{
+//                     srand(time(0));
+//                     index=-1; 
+//                     int maximum=-1;
+//                     for(int i=0;i<IP_TRACKER_COUNT;i++){
+//                         if(trackers[cpu][i].ip_valid==0){
+//                             index=i;
+//                             break;
+//                         }
+//                         if(trackers[cpu][i].counter>maximum){
+//                             maximum=trackers[cpu][i].counter;
+//                             index=i;
+//                         }
+//                     }
+//                     trackers[cpu][index].ip_valid=1;
+//                     trackers[cpu][index].ip_tag=ip;
+//                     trackers[cpu][index].address=addr;
+//                     trackers[cpu][index].prev_stride=0;
+//                     trackers[cpu][index].state=0;
+//                     trackers[cpu][index].counter=0; //LRU
+//                 }
+        
+
+
+//                 if (num_prefs>=PHASE_LENGTH) {
+//                     num_ips_useful = this->pf_useful;
+//                     num_prefs_to_next_level_ip=this->pf_lower_level;
+//                     accuracy_ip = (double)num_ips_useful/(double)num_prefs_to_next_level_ip;
+//                     cout << "Accuracy IP Stride" << accuracy_ip << " with num_ips_useful " << num_ips_useful << " and total pref request " << num_prefs << " " << this->pf_useful << endl;
+//                     runstate = TRAIN;
+//                     prefetcher = CPLX;
+//                     num_prefs = 0;
+//                 }
+
+
+
+
+//             }
+//             else if (prefetcher == CPLX) {
+//                 // Complex-Stride Prefetcher
+//                 // --------------------- Add Complex-Stride pf_address logic here --------------------- // 
+//                 bool is_present1=0;
+//                 int index1=-1;
+//                 for(int i=0;i<NUM_IP_TABLE_L1_ENTRIES;i++){
+//                     if(trackers[cpu][i].ip_tag!=0)
+//                         trackers[cpu][i].counter++;
+//                     if(trackers[cpu][i].ip_tag==ip){
+//                         index1=i;
+//                         is_present1=1;
+//                         trackers[cpu][i].counter=0;
+//                     }
+//                 }
+//                 if(is_present1){
+//                     bool is_present2=1;
+//                     int index2=-1;
+//                     if (((addr) >> LOG2_PAGE_SIZE) != (trackers[cpu][index1].address >> LOG2_PAGE_SIZE)) {
+//                         trackers[cpu][index1].address = addr;
+//                         return;
+//                     }
+//                     int new_stride=cl_addr-(trackers[cpu][index1].address >> LOG2_BLOCK_SIZE);
+                    
+//                     index2 = trackers[cpu][index1].signature;
+                
+//                     //cout << "Hi1" << endl;
+//                     int confidence = update_conf(new_stride,trackers[cpu][index1].cspt[index2].stride, trackers[cpu][index1].cspt[index2].conf);
+//                     trackers[cpu][index1].cspt[index2].conf=confidence;
+//                     uint8_t new_signature=update_sig_l1(trackers[cpu][index1].signature,new_stride);
+//                     trackers[cpu][index1].signature=new_signature;
+//                     if(confidence==0){
+//                         trackers[cpu][index1].cspt[index2].stride=new_stride;
+//                     }
+//                     //int stride_to_prefetch=0;
+//                     int stride_for_prefetch=-1;
+//                     int confidence_for_prefetch=0;
+
+//                     stride_for_prefetch = trackers[cpu][index1].cspt[new_signature].stride;
+//                     confidence_for_prefetch = trackers[cpu][index1].cspt[new_signature].conf;
+                    
+//                     if (stride_for_prefetch != 0 && confidence_for_prefetch != 0) {
+//                         for (int i=1; i<=PREFETCH_DEGREE; i++) {
+//                             if ((addr)>>LOG2_PAGE_SIZE == (trackers[cpu][index1].address >> LOG2_PAGE_SIZE)) {
+//                                 prefetch_line(ip, addr, ((cl_addr + stride_for_prefetch*i) << LOG2_BLOCK_SIZE), FILL_L1, 0);
+//                                 num_prefs++;
+//                             }
+//                             else {
+//                                 break;
+//                             }
+//                         }
+//                     }
+                
+//                 }
+//                 else{
+//                     srand(time(0));
+//                     int index=-1; 
+//                     int maximum=-1;
+//                     int flag=0;
+//                     for(int i=0;i<NUM_IP_TABLE_L1_ENTRIES;i++){
+//                         if(trackers[cpu][i].ip_tag==0){
+//                             index=i;
+//                             flag=1;
+//                             break;
+//                         }
+//                         // if(trackers[cpu][i].counter>maximum){
+//                         //     maximum=trackers[cpu][i].counter;
+//                         //     index=i;
+//                         // }
+//                     }
+//                     if(flag==0){
+//                         index=rand()% NUM_IP_TABLE_L1_ENTRIES;//Random Replacement Policy
+//                     }
+//                     trackers[cpu][index].ip_tag=ip;
+//                     trackers[cpu][index].address=addr;
+//                     trackers[cpu][index].ip_valid=1;
+//                     trackers[cpu][index].signature=0;//signature always starts from zero
+//                     trackers[cpu][index].counter=0;
+//                     for (int i = 0; i < NUM_CSPT_ENTRIES; i++) {
+//                         trackers[cpu][index].cspt[i] = CSPT_ENTRY();
+//                     }
+//                 }
+//                 if (num_prefs>=PHASE_LENGTH) {
+//                     num_cplx_useful = this->pf_useful - num_ips_useful;
+//                     num_prefs_to_next_level_cplx=this->pf_lower_level-num_prefs_to_next_level_ip;
+//                     accuracy_cplx = (double)num_cplx_useful/(double)num_prefs_to_next_level_cplx;
+//                     cout << "Accuracy Complex Stride" << accuracy_cplx << " with num_cplx_useful " << num_cplx_useful << " and total pref request " << num_prefs << " " << this->pf_useful << endl;
+//                     runstate = TRAIN;
+//                     prefetcher = NL;
+//                     num_prefs = 0;
+//                 }
+
+
+
+//             }
+//             else if (prefetcher == NL) {
+//                 // Next-Line Prefetcher
+//                 // ----------------------- Add Next-line pf_address logic here ------------------------ // 
+//                 for(int i=1;i<=PREFETCH_DEGREE;i++){
+//                     uint64_t pf_address = ((cl_addr + i) << LOG2_BLOCK_SIZE);
+//                     if ((pf_address >> LOG2_PAGE_SIZE) != (addr >> LOG2_PAGE_SIZE))
+//                         break;
+//                     prefetch_line(ip, addr, pf_address, FILL_L1, 0);
+//                     num_prefs++;
+//                 }
+
+//                 if (num_prefs>=PHASE_LENGTH) {
+//                     num_nl_useful = this->pf_useful - num_cplx_useful - num_ips_useful;
+//                     num_prefs_to_next_level_nl=this->pf_lower_level-num_prefs_to_next_level_cplx-num_prefs_to_next_level_ip;
+//                     accuracy_nl = (double)num_nl_useful/(double)num_prefs_to_next_level_nl;
+//                     cout << "Accuracy NL" << accuracy_nl << " with num_nl_useful " << num_nl_useful << " and total pref request " << num_prefs << " " << this->pf_useful << endl;
+//                     runstate = RUN;
+//                     prefetcher = IP_STRIDE;
+//                     double maximum = accuracy_ip;
+//                     if (accuracy_cplx >= maximum) {
+//                         maximum = accuracy_cplx;
+//                         prefetcher = CPLX;
+//                     }
+//                     if (accuracy_nl >= maximum) {
+//                         maximum = accuracy_nl;
+//                         prefetcher = NL;
+//                     }
+//                     num_prefs = 0;
+//                     cout << "Finally decided to use " << prefetcher << endl;
+//                     cout << "IP Stride Accuracy:" << accuracy_ip << endl;
+//                     cout << "Complex Accuracy:" <<accuracy_cplx << endl;
+//                     cout << "Next Line Accuracy:" <<accuracy_nl << endl;
+//                     accm_prefs_useful = this->pf_useful;
+//                 }
+
+//             }
+//             else {
+//                 assert(0);
+//             }
+//         }
+//         else if (runstate==RUN){
+//             if (prefetcher == IP_STRIDE) { 
+//                 // IP-Stride Prefetcher
+//                 // ------------------------ Add IP-Stride pf_address logic here ----------------------- // 
+//                 bool is_present=0;
+//                 int index=-1;
+//                 for(int i=0;i<NUM_IP_TABLE_L1_ENTRIES;i++){
+//                     if(trackers[cpu][i].ip_valid!=0)
+//                         trackers[cpu][i].counter = min(trackers[cpu][i].counter+1,NUM_IP_TABLE_L1_ENTRIES-1);
+//                     if(trackers[cpu][i].ip_tag==ip){
+//                         index=i;
+//                         is_present=1;
+//                         trackers[cpu][i].counter=0;
+//                     }
+//                 }
+//                 if(is_present){
+//                     if(trackers[cpu][index].state==0){
+//                         trackers[cpu][index].prev_stride=(addr>>LOG2_BLOCK_SIZE)-(trackers[cpu][index].address>>LOG2_BLOCK_SIZE);
+//                         trackers[cpu][index].address=addr;
+//                         trackers[cpu][index].state=1;
+//                         return;
+//                     }
+//                     int new_stride=(addr>>LOG2_BLOCK_SIZE)-(trackers[cpu][index].address>>LOG2_BLOCK_SIZE);
+//                     if(trackers[cpu][index].prev_stride==new_stride){
+//                         trackers[cpu][index].address=addr;
+//                         trackers[cpu][index].state++;
+//                         if(trackers[cpu][index].state>1){
+//                             for(int i=0;i<PREFETCH_DEGREE;i++){
+//                                 uint64_t pf_address=(((addr >> LOG2_BLOCK_SIZE)+((i+1)*new_stride))<<LOG2_BLOCK_SIZE);
+//                                 if ((pf_address >> LOG2_PAGE_SIZE) != (addr >> LOG2_PAGE_SIZE))
+//                                 break;
+//                                 prefetch_line(ip, addr, pf_address, FILL_L1, 0);
+//                                 num_prefs++;
+//                             }
+//                         }
+//                     }
+//                     else{
+//                         trackers[cpu][index].state=1;
+//                         trackers[cpu][index].prev_stride=(addr>>LOG2_BLOCK_SIZE)-(trackers[cpu][index].address>>LOG2_BLOCK_SIZE);
+//                         trackers[cpu][index].address=addr;
+//                     }
+//                 }
+//                 else{
+//                     srand(time(0));
+//                     index=-1; 
+//                     int maximum=-1;
+//                     for(int i=0;i<IP_TRACKER_COUNT;i++){
+//                         if(trackers[cpu][i].ip_valid==0){
+//                             index=i;
+//                             break;
+//                         }
+//                         if(trackers[cpu][i].counter>maximum){
+//                             maximum=trackers[cpu][i].counter;
+//                             index=i;
+//                         }
+//                     }
+//                     trackers[cpu][index].ip_valid=1;
+//                     trackers[cpu][index].ip_tag=ip;
+//                     trackers[cpu][index].address=addr;
+//                     trackers[cpu][index].prev_stride=0;
+//                     trackers[cpu][index].state=0;
+//                     trackers[cpu][index].counter=0; //LRU
+//                 }
+//             }
+//             else if (prefetcher == CPLX) {
+//                 // Complex-Stride Prefetcher
+//                 // --------------------- Add Complex-Stride pf_address logic here --------------------- // 
+//                 bool is_present1=0;
+//                 int index1=-1;
+//                 for(int i=0;i<NUM_IP_TABLE_L1_ENTRIES;i++){
+//                     if(trackers[cpu][i].ip_tag!=0)
+//                         trackers[cpu][i].counter++;
+//                     if(trackers[cpu][i].ip_tag==ip){
+//                         index1=i;
+//                         is_present1=1;
+//                         trackers[cpu][i].counter=0;
+//                     }
+//                 }
+//                 if(is_present1){
+//                     bool is_present2=1;
+//                     int index2=-1;
+//                     if (((addr) >> LOG2_PAGE_SIZE) != (trackers[cpu][index1].address >> LOG2_PAGE_SIZE)) {
+//                         trackers[cpu][index1].address = addr;
+//                         return;
+//                     }
+//                     int new_stride=cl_addr-(trackers[cpu][index1].address >> LOG2_BLOCK_SIZE);
+                    
+//                     index2 = trackers[cpu][index1].signature;
+                
+//                     //cout << "Hi1" << endl;
+//                     int confidence = update_conf(new_stride,trackers[cpu][index1].cspt[index2].stride, trackers[cpu][index1].cspt[index2].conf);
+//                     trackers[cpu][index1].cspt[index2].conf=confidence;
+//                     uint8_t new_signature=update_sig_l1(trackers[cpu][index1].signature,new_stride);
+//                     trackers[cpu][index1].signature=new_signature;
+//                     if(confidence==0){
+//                         trackers[cpu][index1].cspt[index2].stride=new_stride;
+//                     }
+//                     //int stride_to_prefetch=0;
+//                     int stride_for_prefetch=-1;
+//                     int confidence_for_prefetch=0;
+
+//                     stride_for_prefetch = trackers[cpu][index1].cspt[new_signature].stride;
+//                     confidence_for_prefetch = trackers[cpu][index1].cspt[new_signature].conf;
+                    
+//                     if (stride_for_prefetch != 0 && confidence_for_prefetch != 0) {
+//                         for (int i=1; i<=PREFETCH_DEGREE; i++) {
+//                             if ((addr)>>LOG2_PAGE_SIZE == (trackers[cpu][index1].address >> LOG2_PAGE_SIZE)) {
+//                                 prefetch_line(ip, addr, ((cl_addr + stride_for_prefetch*i) << LOG2_BLOCK_SIZE), FILL_L1, 0);
+//                                 num_prefs++;
+//                             }
+//                             else {
+//                                 break;
+//                             }
+//                         }
+//                     }
+                
+//                 }
+//                 else{
+//                     srand(time(0));
+//                     int index=-1; 
+//                     int maximum=-1;
+//                     int flag=0;
+//                     for(int i=0;i<NUM_IP_TABLE_L1_ENTRIES;i++){
+//                         if(trackers[cpu][i].ip_tag==0){
+//                             index=i;
+//                             flag=1;
+//                             break;
+//                         }
+//                         // if(trackers[cpu][i].counter>maximum){
+//                         //     maximum=trackers[cpu][i].counter;
+//                         //     index=i;
+//                         // }
+//                     }
+//                     if(flag==0){
+//                         index=rand()% NUM_IP_TABLE_L1_ENTRIES;//Random Replacement Policy
+//                     }
+//                     trackers[cpu][index].ip_tag=ip;
+//                     trackers[cpu][index].address=addr;
+//                     trackers[cpu][index].ip_valid=1;
+//                     trackers[cpu][index].signature=0;//signature always starts from zero
+//                     trackers[cpu][index].counter=0;
+//                     for (int i = 0; i < NUM_CSPT_ENTRIES; i++) {
+//                         trackers[cpu][index].cspt[i] = CSPT_ENTRY();
+//                     }
+//                 }
+
+
+
+//             }
+//             else if (prefetcher == NL) {
+//                 // Next-Line Prefetcher
+//                 // ----------------------- Add Next-line pf_address logic here ------------------------ // 
+//                 for(int i=1;i<=PREFETCH_DEGREE;i++){
+//                     uint64_t pf_address = ((cl_addr + i) << LOG2_BLOCK_SIZE);
+//                     if ((pf_address >> LOG2_PAGE_SIZE) != (addr >> LOG2_PAGE_SIZE))
+//                         break;
+//                     prefetch_line(ip, addr, pf_address, FILL_L1, 0);
+//                     num_prefs++;
+//                 }
+
+//             }
+//             else {
+//                 assert(0);
+//             }
+//         }
+
+//     }
+
+// 	return;
+
+// }
+
+// // ------------------------- DO NOT CHANGE -------------------------------- //
+// void CACHE::l1d_prefetcher_notify_about_dtlb_eviction(uint64_t addr, uint32_t set, uint32_t way, uint8_t prefetch, uint64_t evicted_addr, uint32_t metadata_in)
+// {
+    
+// }
+
+// void CACHE::l1d_prefetcher_cache_fill(uint64_t v_addr, uint64_t addr, uint32_t set, uint32_t way, uint8_t prefetch, uint64_t v_evicted_addr, uint64_t evicted_addr, uint32_t metadata_in)
+// {
+    
+// }
+
+// void CACHE::l1d_prefetcher_final_stats()
+// {
+// 	cout << "CPU " << cpu << " L1D optimized prefetcher final stats" << endl;
+// 	cout << "Degree: " << PREFETCH_DEGREE << endl;
+// }
+// // ------------------------- DO NOT CHANGE -------------------------------- //
+
+
+// #include "cache.h"
+// #include "ooo_cpu.h"
+// //redo toggle
+// #define REDO_TOGGLE 0
+// // ------------------------- DO NOT CHANGE -------------------------------- //
+// #define NUM_IP_TABLE_L1_ENTRIES 1024  // IP table entries
+// #define IP_TRACKER_COUNT 64           // Number of IP trackers[cpu]
+// #define PREFETCH_DEGREE 5             // Prefetch degree
+// // ------------------------- DO NOT CHANGE -------------------------------- //
+// #define MAX_CONFIDENCE 7                   // Maximum confidence value
+// #define NUM_CSPT_ENTRIES 1<<8               // CSPT entries
+
+// #define PHASE_LENGTH 500000              // Choose an appropriate phase length
+// #define WORKING_PERIOD 100000           // Choose an appropriate working period
+
+// #define IP_STRIDE 1                   // IP-Stride Prefetcher
+// #define CPLX 2                        // Complex-Stride Prefetcher
+// #define NL 3                          // Next-line Prefetcher
+// #define TRAIN 1                       // Training mode
+// #define RUN 2                         // Running mode
+
+
+// bool warmup_over = false;             // To keep a track of the warmup phase
+// uint64_t num_prefs = 0;               // To keep a track of the number of prefetched lines, will be updated accordingly
+// uint64_t accm_prefs_useful = 0;        // To keep a track of the number of prefetched lines that were useful, will be updated accordingly
+// // Track the accuracy of the different prefetchers
+// double accuracy_ip=0;
+// double accuracy_cplx=0;
+// double accuracy_nl=0;
+
+// uint16_t prefetcher = IP_STRIDE;      // Start with the IP-Stride Prefetcher
+// int runstate = TRAIN;                   // Start running the prefetcher
+// int num_ips_useful = 0;                         // Number of IPs
+// int num_cplx_useful = 0;                     // Number of CPLXs
+// int num_nl_useful = 0;                       // Number of Next-line prefetches
+// int num_prefs_to_next_level_ip=0;
+// int num_prefs_to_next_level_cplx=0;
+// int num_prefs_to_next_level_nl=0;
+// int num_cache_hits_ips=0;
+// int num_cache_hits_cplx=0;
+// int num_cache_hits_nl=0;
+// //cache hits
+// int cache_hits = 0;
+// int accm_cache_hits = 0;
+
+// // CSPT Entry
+// class CSPT_ENTRY {
+//   public:
+//     uint8_t signature;
+//     int stride;
+//     int conf;
+//     int counter;
+
+//     CSPT_ENTRY() {
+//         signature = 0;
+//         stride = 0;
+//         conf = 0;
+//         counter = 0;
+//     }
+// };
+
+// // ------------ YOU CAN CHANGE THE IP_TABLE FOR YOUR DESIGN ---------------- //
+// class IP_TABLE {
+//   public:
+//     uint8_t state; //There will be total 4 states, RESET, INITIAL STATE, TRANSIENT STATE, CONFIDENT STATE
+//     uint64_t prev_stride; // Previous stride for IP-stride variant (not for cplx)
+//     uint64_t address;                      // Address of the IP
+//     uint64_t ip_tag;
+//     uint16_t ip_valid;                      // Valid IP or not   
+//     uint8_t signature;                     // CPLX signature
+//     int counter;   // max value should be the size of the IP table
+//     CSPT_ENTRY cspt[NUM_CSPT_ENTRIES];
+//     IP_TABLE () {
+//         state=0;
+//         ip_tag = 0;
+//         ip_valid = 0;
+//         signature = 0;
+//         address=0;
+//         prev_stride = 0;
+//         counter = NUM_IP_TABLE_L1_ENTRIES-1;
+//         for (int i = 0; i < NUM_CSPT_ENTRIES; i++) {
+//             cspt[i] = CSPT_ENTRY();
+//         }
+//     };
+
+// };
+
+// IP_TABLE trackers[NUM_CPUS][NUM_IP_TABLE_L1_ENTRIES];
+
+
+// // ------------------------- Updating the signature ---------------------------- // 
+// uint8_t update_sig_l1(uint8_t old_sig, int delta) {                           
+//     uint8_t new_sig = ((old_sig << 1) ^ (uint16_t)delta);
+//     return new_sig;
+// }
+
+// // ------------------- Updating confidence for the CPLX class ------------------ // 
+// int update_conf(int stride, int pred_stride, int conf) {
+//     if (stride == pred_stride) {
+//         if (conf < MAX_CONFIDENCE)
+//             conf++;
+//     } else {
+//         if (conf > 0)
+//             conf--;
+//     }
+//     return conf;
+// }
+
+
+
+// // ------------------------- Initialize the prefetcher ------------------------- // 
+// void CACHE::l1d_prefetcher_initialize() 
+// {
+// 	cout << "CPU " << cpu << " L1D Optimized prefetcher" << endl;
+//     for (int i = 0; i < NUM_IP_TABLE_L1_ENTRIES; i++) {
+//         trackers[cpu][i] = IP_TABLE();
+//     }
+// }
+
+// // --------------- This is the main prefetcher operate function ---------------- // 
+// void CACHE::l1d_prefetcher_operate(uint64_t addr, uint64_t ip, uint8_t cache_hit, uint8_t type, uint8_t critical_ip_flag)
+// {
+//     uint64_t cl_addr = addr >> LOG2_BLOCK_SIZE;
+//     if (cache_hit) {
+//         cache_hits++;
+//     }
+//     if(!warmup_over && warmup_complete[cpu] == 1){
+//         warmup_over = true;
+//         //
+//         accm_prefs_useful = this->pf_useful;
+//         cout << "Hello " << accm_prefs_useful << endl; 
+//         num_prefs = 0;
+//         prefetcher = IP_STRIDE;
+//         runstate = TRAIN;
+//         accm_cache_hits = cache_hits;
+//         num_cache_hits_ips = 0;
+//         num_cache_hits_cplx = 0;
+//         num_cache_hits_nl = 0;
+        
+//     }
+
+//     if (warmup_complete[cpu] == 1) {
+
+//         if (num_prefs%WORKING_PERIOD == 0 && REDO_TOGGLE == 1) {
+            
+//             cout<< "TRAIN ACCURACY: " << accuracy_ip << " " << accuracy_cplx << " " << accuracy_nl << endl;
+//             cout<< "RUN ACCURACY: " << (double)(this->pf_useful - accm_prefs_useful)/(double)num_prefs << endl;
+//             runstate = TRAIN;
+//             prefetcher = IP_STRIDE;
+//             num_prefs = 0;
+//             accm_cache_hits = cache_hits;
+//             num_cache_hits_ips = 0;
+//             num_cache_hits_cplx = 0;
+//             num_cache_hits_nl = 0;
+//             accm_prefs_useful = this->pf_useful;
+
+//         }
+    
+//         if(runstate == TRAIN){
+//             if (prefetcher == IP_STRIDE) { 
+//                 // IP-Stride Prefetcher
+//                 // ------------------------ Add IP-Stride pf_address logic here ----------------------- // 
+//                 bool is_present=0;
+//                 int index=-1;
+//                 for(int i=0;i<NUM_IP_TABLE_L1_ENTRIES;i++){
+//                     if(trackers[cpu][i].ip_valid!=0)
+//                         trackers[cpu][i].counter = min(trackers[cpu][i].counter+1,NUM_IP_TABLE_L1_ENTRIES-1);
+//                     if(trackers[cpu][i].ip_tag==ip){
+//                         index=i;
+//                         is_present=1;
+//                         trackers[cpu][i].counter=0;
+//                     }
+//                 }
+//                 if(is_present){
+//                     if(trackers[cpu][index].state==0){
+//                         trackers[cpu][index].prev_stride=(addr>>LOG2_BLOCK_SIZE)-(trackers[cpu][index].address>>LOG2_BLOCK_SIZE);
+//                         trackers[cpu][index].address=addr;
+//                         trackers[cpu][index].state=1;
+//                         return;
+//                     }
+//                     int new_stride=(addr>>LOG2_BLOCK_SIZE)-(trackers[cpu][index].address>>LOG2_BLOCK_SIZE);
+//                     if(trackers[cpu][index].prev_stride==new_stride){
+//                         trackers[cpu][index].address=addr;
+//                         trackers[cpu][index].state++;
+//                         if(trackers[cpu][index].state>1){
+//                             for(int i=0;i<PREFETCH_DEGREE;i++){
+//                                 uint64_t pf_address=(((addr >> LOG2_BLOCK_SIZE)+((i+1)*new_stride))<<LOG2_BLOCK_SIZE);
+//                                 if ((pf_address >> LOG2_PAGE_SIZE) != (addr >> LOG2_PAGE_SIZE))
+//                                 break;
+//                                 prefetch_line(ip, addr, pf_address, FILL_L1, 0);
+//                                 num_prefs++;
+//                             }
+//                         }
+//                     }
+//                     else{
+//                         trackers[cpu][index].state=1;
+//                         trackers[cpu][index].prev_stride=(addr>>LOG2_BLOCK_SIZE)-(trackers[cpu][index].address>>LOG2_BLOCK_SIZE);
+//                         trackers[cpu][index].address=addr;
+//                     }
+//                 }
+//                 else{
+//                     srand(time(0));
+//                     index=-1; 
+//                     int maximum=-1;
+//                     for(int i=0;i<IP_TRACKER_COUNT;i++){
+//                         if(trackers[cpu][i].ip_valid==0){
+//                             index=i;
+//                             break;
+//                         }
+//                         if(trackers[cpu][i].counter>maximum){
+//                             maximum=trackers[cpu][i].counter;
+//                             index=i;
+//                         }
+//                     }
+//                     trackers[cpu][index].ip_valid=1;
+//                     trackers[cpu][index].ip_tag=ip;
+//                     trackers[cpu][index].address=addr;
+//                     trackers[cpu][index].prev_stride=0;
+//                     trackers[cpu][index].state=0;
+//                     trackers[cpu][index].counter=0; //LRU
+//                 }
+        
+
+
+//                 if (num_prefs>=PHASE_LENGTH) {
+//                     num_ips_useful = this->pf_useful;
+//                     num_prefs_to_next_level_ip=this->pf_lower_level-accm_prefs_useful;
+//                     //accuracy_ip = (double)num_ips_useful/(double)num_prefs_to_next_level_ip;
+//                     num_cache_hits_ips = cache_hits - accm_cache_hits;
+//                     accm_cache_hits = cache_hits;
+//                     accuracy_ip = (double)num_ips_useful/(double)num_cache_hits_ips; //ye check kar @arohan
+//                     cout << "Accuracy IP Stride" << accuracy_ip << " with num_ips_useful " << num_ips_useful << " and total pref request " << num_prefs << " " << this->pf_useful << endl;
+//                     runstate = TRAIN;
+//                     prefetcher = CPLX;
+//                     num_prefs = 0;
+//                 }
+
+
+
+
+//             }
+//             else if (prefetcher == CPLX) {
+//                 // Complex-Stride Prefetcher
+//                 // --------------------- Add Complex-Stride pf_address logic here --------------------- // 
+//                 bool is_present1=0;
+//                 int index1=-1;
+//                 for(int i=0;i<NUM_IP_TABLE_L1_ENTRIES;i++){
+//                     if(trackers[cpu][i].ip_tag!=0)
+//                         trackers[cpu][i].counter++;
+//                     if(trackers[cpu][i].ip_tag==ip){
+//                         index1=i;
+//                         is_present1=1;
+//                         trackers[cpu][i].counter=0;
+//                     }
+//                 }
+//                 if(is_present1){
+//                     bool is_present2=1;
+//                     int index2=-1;
+//                     if (((addr) >> LOG2_PAGE_SIZE) != (trackers[cpu][index1].address >> LOG2_PAGE_SIZE)) {
+//                         trackers[cpu][index1].address = addr;
+//                         return;
+//                     }
+//                     int new_stride=cl_addr-(trackers[cpu][index1].address >> LOG2_BLOCK_SIZE);
+                    
+//                     index2 = trackers[cpu][index1].signature;
+                
+//                     //cout << "Hi1" << endl;
+//                     int confidence = update_conf(new_stride,trackers[cpu][index1].cspt[index2].stride, trackers[cpu][index1].cspt[index2].conf);
+//                     trackers[cpu][index1].cspt[index2].conf=confidence;
+//                     uint8_t new_signature=update_sig_l1(trackers[cpu][index1].signature,new_stride);
+//                     trackers[cpu][index1].signature=new_signature;
+//                     if(confidence==0){
+//                         trackers[cpu][index1].cspt[index2].stride=new_stride;
+//                     }
+//                     //int stride_to_prefetch=0;
+//                     int stride_for_prefetch=-1;
+//                     int confidence_for_prefetch=0;
+
+//                     stride_for_prefetch = trackers[cpu][index1].cspt[new_signature].stride;
+//                     confidence_for_prefetch = trackers[cpu][index1].cspt[new_signature].conf;
+                    
+//                     if (stride_for_prefetch != 0 && confidence_for_prefetch != 0) {
+//                         for (int i=1; i<=PREFETCH_DEGREE; i++) {
+//                             if ((addr)>>LOG2_PAGE_SIZE == (trackers[cpu][index1].address >> LOG2_PAGE_SIZE)) {
+//                                 prefetch_line(ip, addr, ((cl_addr + stride_for_prefetch*i) << LOG2_BLOCK_SIZE), FILL_L1, 0);
+//                                 num_prefs++;
+//                             }
+//                             else {
+//                                 break;
+//                             }
+//                         }
+//                     }
+                
+//                 }
+//                 else{
+//                     srand(time(0));
+//                     int index=-1; 
+//                     int maximum=-1;
+//                     int flag=0;
+//                     for(int i=0;i<NUM_IP_TABLE_L1_ENTRIES;i++){
+//                         if(trackers[cpu][i].ip_tag==0){
+//                             index=i;
+//                             flag=1;
+//                             break;
+//                         }
+//                         // if(trackers[cpu][i].counter>maximum){
+//                         //     maximum=trackers[cpu][i].counter;
+//                         //     index=i;
+//                         // }
+//                     }
+//                     if(flag==0){
+//                         index=rand()% NUM_IP_TABLE_L1_ENTRIES;//Random Replacement Policy
+//                     }
+//                     trackers[cpu][index].ip_tag=ip;
+//                     trackers[cpu][index].address=addr;
+//                     trackers[cpu][index].ip_valid=1;
+//                     trackers[cpu][index].signature=0;//signature always starts from zero
+//                     trackers[cpu][index].counter=0;
+//                     for (int i = 0; i < NUM_CSPT_ENTRIES; i++) {
+//                         trackers[cpu][index].cspt[i] = CSPT_ENTRY();
+//                     }
+//                 }
+//                 if (num_prefs>=PHASE_LENGTH) {
+//                     num_cplx_useful = this->pf_useful - num_ips_useful;
+//                     num_prefs_to_next_level_cplx=this->pf_lower_level-num_prefs_to_next_level_ip;
+//                     num_cache_hits_cplx = cache_hits - accm_cache_hits;
+//                     accm_cache_hits = cache_hits;
+//                     accuracy_cplx = (double)num_cplx_useful/(double)num_cache_hits_cplx; //ye check kar @arohan
+//                     //accuracy_cplx = (double)num_cplx_useful/(double)num_prefs_to_next_level_cplx;
+//                     cout << "Accuracy Complex Stride" << accuracy_cplx << " with num_cplx_useful " << num_cplx_useful << " and total pref request " << num_prefs << " " << this->pf_useful << endl;
+//                     runstate = TRAIN;
+//                     prefetcher = NL;
+//                     num_prefs = 0;
+//                 }
+
+
+
+//             }
+//             else if (prefetcher == NL) {
+//                 // Next-Line Prefetcher
+//                 // ----------------------- Add Next-line pf_address logic here ------------------------ // 
+//                 for(int i=1;i<=PREFETCH_DEGREE;i++){
+//                     uint64_t pf_address = ((cl_addr + i) << LOG2_BLOCK_SIZE);
+//                     if ((pf_address >> LOG2_PAGE_SIZE) != (addr >> LOG2_PAGE_SIZE))
+//                         break;
+//                     prefetch_line(ip, addr, pf_address, FILL_L1, 0);
+//                     num_prefs++;
+//                 }
+
+//                 if (num_prefs>=PHASE_LENGTH) {
+//                     num_nl_useful = this->pf_useful - num_cplx_useful - num_ips_useful;
+//                     num_prefs_to_next_level_nl=this->pf_lower_level-num_prefs_to_next_level_cplx-num_prefs_to_next_level_ip;
+//                     num_cache_hits_nl = cache_hits - accm_cache_hits;
+//                     accm_cache_hits = cache_hits;
+//                     accuracy_nl = (double)num_nl_useful/(double)num_cache_hits_nl; //ye check kar @arohan
+//                     // accuracy_nl = (double)num_nl_useful/(double)num_prefs_to_next_level_nl;
+//                     cout << "Accuracy NL" << accuracy_nl << " with num_nl_useful " << num_nl_useful << " and total pref request " << num_prefs << " " << this->pf_useful << endl;
+//                     runstate = RUN;
+//                     prefetcher = IP_STRIDE;
+//                     double maximum = accuracy_ip;
+//                     if (accuracy_cplx >= maximum) {
+//                         maximum = accuracy_cplx;
+//                         prefetcher = CPLX;
+//                     }
+//                     if (accuracy_nl >= maximum) {
+//                         maximum = accuracy_nl;
+//                         prefetcher = NL;
+//                     }
+//                     num_prefs = 0;
+//                     cout << "Finally decided to use " << prefetcher << endl;
+//                     cout << "IP Stride Accuracy:" << accuracy_ip << endl;
+//                     cout << "Complex Accuracy:" <<accuracy_cplx << endl;
+//                     cout << "Next Line Accuracy:" <<accuracy_nl << endl;
+//                     accm_prefs_useful = this->pf_useful;
+//                 }
+
+//             }
+//             else {
+//                 assert(0);
+//             }
+//         }
+//         else if (runstate==RUN){
+//             if (prefetcher == IP_STRIDE) { 
+//                 // IP-Stride Prefetcher
+//                 // ------------------------ Add IP-Stride pf_address logic here ----------------------- // 
+//                 bool is_present=0;
+//                 int index=-1;
+//                 for(int i=0;i<NUM_IP_TABLE_L1_ENTRIES;i++){
+//                     if(trackers[cpu][i].ip_valid!=0)
+//                         trackers[cpu][i].counter = min(trackers[cpu][i].counter+1,NUM_IP_TABLE_L1_ENTRIES-1);
+//                     if(trackers[cpu][i].ip_tag==ip){
+//                         index=i;
+//                         is_present=1;
+//                         trackers[cpu][i].counter=0;
+//                     }
+//                 }
+//                 if(is_present){
+//                     if(trackers[cpu][index].state==0){
+//                         trackers[cpu][index].prev_stride=(addr>>LOG2_BLOCK_SIZE)-(trackers[cpu][index].address>>LOG2_BLOCK_SIZE);
+//                         trackers[cpu][index].address=addr;
+//                         trackers[cpu][index].state=1;
+//                         return;
+//                     }
+//                     int new_stride=(addr>>LOG2_BLOCK_SIZE)-(trackers[cpu][index].address>>LOG2_BLOCK_SIZE);
+//                     if(trackers[cpu][index].prev_stride==new_stride){
+//                         trackers[cpu][index].address=addr;
+//                         trackers[cpu][index].state++;
+//                         if(trackers[cpu][index].state>1){
+//                             for(int i=0;i<PREFETCH_DEGREE;i++){
+//                                 uint64_t pf_address=(((addr >> LOG2_BLOCK_SIZE)+((i+1)*new_stride))<<LOG2_BLOCK_SIZE);
+//                                 if ((pf_address >> LOG2_PAGE_SIZE) != (addr >> LOG2_PAGE_SIZE))
+//                                 break;
+//                                 prefetch_line(ip, addr, pf_address, FILL_L1, 0);
+//                                 num_prefs++;
+//                             }
+//                         }
+//                     }
+//                     else{
+//                         trackers[cpu][index].state=1;
+//                         trackers[cpu][index].prev_stride=(addr>>LOG2_BLOCK_SIZE)-(trackers[cpu][index].address>>LOG2_BLOCK_SIZE);
+//                         trackers[cpu][index].address=addr;
+//                     }
+//                 }
+//                 else{
+//                     srand(time(0));
+//                     index=-1; 
+//                     int maximum=-1;
+//                     for(int i=0;i<IP_TRACKER_COUNT;i++){
+//                         if(trackers[cpu][i].ip_valid==0){
+//                             index=i;
+//                             break;
+//                         }
+//                         if(trackers[cpu][i].counter>maximum){
+//                             maximum=trackers[cpu][i].counter;
+//                             index=i;
+//                         }
+//                     }
+//                     trackers[cpu][index].ip_valid=1;
+//                     trackers[cpu][index].ip_tag=ip;
+//                     trackers[cpu][index].address=addr;
+//                     trackers[cpu][index].prev_stride=0;
+//                     trackers[cpu][index].state=0;
+//                     trackers[cpu][index].counter=0; //LRU
+//                 }
+//             }
+//             else if (prefetcher == CPLX) {
+//                 // Complex-Stride Prefetcher
+//                 // --------------------- Add Complex-Stride pf_address logic here --------------------- // 
+//                 bool is_present1=0;
+//                 int index1=-1;
+//                 for(int i=0;i<NUM_IP_TABLE_L1_ENTRIES;i++){
+//                     if(trackers[cpu][i].ip_tag!=0)
+//                         trackers[cpu][i].counter++;
+//                     if(trackers[cpu][i].ip_tag==ip){
+//                         index1=i;
+//                         is_present1=1;
+//                         trackers[cpu][i].counter=0;
+//                     }
+//                 }
+//                 if(is_present1){
+//                     bool is_present2=1;
+//                     int index2=-1;
+//                     if (((addr) >> LOG2_PAGE_SIZE) != (trackers[cpu][index1].address >> LOG2_PAGE_SIZE)) {
+//                         trackers[cpu][index1].address = addr;
+//                         return;
+//                     }
+//                     int new_stride=cl_addr-(trackers[cpu][index1].address >> LOG2_BLOCK_SIZE);
+                    
+//                     index2 = trackers[cpu][index1].signature;
+                
+//                     //cout << "Hi1" << endl;
+//                     int confidence = update_conf(new_stride,trackers[cpu][index1].cspt[index2].stride, trackers[cpu][index1].cspt[index2].conf);
+//                     trackers[cpu][index1].cspt[index2].conf=confidence;
+//                     uint8_t new_signature=update_sig_l1(trackers[cpu][index1].signature,new_stride);
+//                     trackers[cpu][index1].signature=new_signature;
+//                     if(confidence==0){
+//                         trackers[cpu][index1].cspt[index2].stride=new_stride;
+//                     }
+//                     //int stride_to_prefetch=0;
+//                     int stride_for_prefetch=-1;
+//                     int confidence_for_prefetch=0;
+
+//                     stride_for_prefetch = trackers[cpu][index1].cspt[new_signature].stride;
+//                     confidence_for_prefetch = trackers[cpu][index1].cspt[new_signature].conf;
+                    
+//                     if (stride_for_prefetch != 0 && confidence_for_prefetch != 0) {
+//                         for (int i=1; i<=PREFETCH_DEGREE; i++) {
+//                             if ((addr)>>LOG2_PAGE_SIZE == (trackers[cpu][index1].address >> LOG2_PAGE_SIZE)) {
+//                                 prefetch_line(ip, addr, ((cl_addr + stride_for_prefetch*i) << LOG2_BLOCK_SIZE), FILL_L1, 0);
+//                                 num_prefs++;
+//                             }
+//                             else {
+//                                 break;
+//                             }
+//                         }
+//                     }
+                
+//                 }
+//                 else{
+//                     srand(time(0));
+//                     int index=-1; 
+//                     int maximum=-1;
+//                     int flag=0;
+//                     for(int i=0;i<NUM_IP_TABLE_L1_ENTRIES;i++){
+//                         if(trackers[cpu][i].ip_tag==0){
+//                             index=i;
+//                             flag=1;
+//                             break;
+//                         }
+//                         // if(trackers[cpu][i].counter>maximum){
+//                         //     maximum=trackers[cpu][i].counter;
+//                         //     index=i;
+//                         // }
+//                     }
+//                     if(flag==0){
+//                         index=rand()% NUM_IP_TABLE_L1_ENTRIES;//Random Replacement Policy
+//                     }
+//                     trackers[cpu][index].ip_tag=ip;
+//                     trackers[cpu][index].address=addr;
+//                     trackers[cpu][index].ip_valid=1;
+//                     trackers[cpu][index].signature=0;//signature always starts from zero
+//                     trackers[cpu][index].counter=0;
+//                     for (int i = 0; i < NUM_CSPT_ENTRIES; i++) {
+//                         trackers[cpu][index].cspt[i] = CSPT_ENTRY();
+//                     }
+//                 }
+
+
+
+//             }
+//             else if (prefetcher == NL) {
+//                 // Next-Line Prefetcher
+//                 // ----------------------- Add Next-line pf_address logic here ------------------------ // 
+//                 for(int i=1;i<=PREFETCH_DEGREE;i++){
+//                     uint64_t pf_address = ((cl_addr + i) << LOG2_BLOCK_SIZE);
+//                     if ((pf_address >> LOG2_PAGE_SIZE) != (addr >> LOG2_PAGE_SIZE))
+//                         break;
+//                     prefetch_line(ip, addr, pf_address, FILL_L1, 0);
+//                     num_prefs++;
+//                 }
+
+//             }
+//             else {
+//                 assert(0);
+//             }
+//         }
+
+//     }
+
+// 	return;
+
+// }
+
+// // ------------------------- DO NOT CHANGE -------------------------------- //
+// void CACHE::l1d_prefetcher_notify_about_dtlb_eviction(uint64_t addr, uint32_t set, uint32_t way, uint8_t prefetch, uint64_t evicted_addr, uint32_t metadata_in)
+// {
+    
+// }
+
+// void CACHE::l1d_prefetcher_cache_fill(uint64_t v_addr, uint64_t addr, uint32_t set, uint32_t way, uint8_t prefetch, uint64_t v_evicted_addr, uint64_t evicted_addr, uint32_t metadata_in)
+// {
+    
+// }
+
+// void CACHE::l1d_prefetcher_final_stats()
+// {
+// 	cout << "CPU " << cpu << " L1D optimized prefetcher final stats" << endl;
+// 	cout << "Degree: " << PREFETCH_DEGREE << endl;
+// }
+// // ------------------------- DO NOT CHANGE -------------------------------- //
+
+#include "cache.h"
+#include "ooo_cpu.h"
+//redo toggle
+#define REDO_TOGGLE 0
+// ------------------------- DO NOT CHANGE -------------------------------- //
+#define NUM_IP_TABLE_L1_ENTRIES 1024  // IP table entries
+#define IP_TRACKER_COUNT 64           // Number of IP trackers[cpu]
+#define PREFETCH_DEGREE 5             // Prefetch degree
+// ------------------------- DO NOT CHANGE -------------------------------- //
+#define MAX_CONFIDENCE 7                   // Maximum confidence value
+#define NUM_CSPT_ENTRIES 1<<8               // CSPT entries
+
+#define PHASE_LENGTH 500000              // Choose an appropriate phase length
+#define WORKING_PERIOD 100000           // Choose an appropriate working period
+
+#define IP_STRIDE 1                   // IP-Stride Prefetcher
+#define CPLX 2                        // Complex-Stride Prefetcher
+#define NL 3                          // Next-line Prefetcher
+#define TRAIN 1                       // Training mode
+#define RUN 2                         // Running mode
+
+
+bool warmup_over = false;             // To keep a track of the warmup phase
+uint64_t num_prefs = 0;               // To keep a track of the number of prefetched lines, will be updated accordingly
+uint64_t accm_prefs_useful = 0;        // To keep a track of the number of prefetched lines that were useful, will be updated accordingly
+// Track the accuracy of the different prefetchers
+double accuracy_ip=0;
+double accuracy_cplx=0;
+double accuracy_nl=0;
+
+uint16_t prefetcher = IP_STRIDE;      // Start with the IP-Stride Prefetcher
+int runstate = TRAIN;                   // Start running the prefetcher
+int num_ips_useful = 0;                         // Number of IPs
+int num_cplx_useful = 0;                     // Number of CPLXs
+int num_nl_useful = 0;                       // Number of Next-line prefetches
+int num_prefs_to_next_level_ip=0;
+int num_prefs_to_next_level_cplx=0;
+int num_prefs_to_next_level_nl=0;
+int num_cache_hits_ips=0;
+int num_cache_hits_cplx=0;
+int num_cache_hits_nl=0;
+//cache hits
+int cache_hits = 0;
+int accm_cache_hits = 0;
+int total_accesses = 0;
+int accm_total_accesses = 0;
+int accesses_ips = 0;
+int accesses_cplx = 0;
+int accesses_nl = 0;
+
+// CSPT Entry
+class CSPT_ENTRY {
+  public:
+    uint8_t signature;
+    int stride;
+    int conf;
+    int counter;
+
+    CSPT_ENTRY() {
+        signature = 0;
+        stride = 0;
+        conf = 0;
+        counter = 0;
+    }
+};
+
+// ------------ YOU CAN CHANGE THE IP_TABLE FOR YOUR DESIGN ---------------- //
+class IP_TABLE {
+  public:
+    uint8_t state; //There will be total 4 states, RESET, INITIAL STATE, TRANSIENT STATE, CONFIDENT STATE
+    uint64_t prev_stride; // Previous stride for IP-stride variant (not for cplx)
+    uint64_t address;                      // Address of the IP
+    uint64_t ip_tag;
+    uint16_t ip_valid;                      // Valid IP or not   
+    uint8_t signature;                     // CPLX signature
+    int counter;   // max value should be the size of the IP table
+    CSPT_ENTRY cspt[NUM_CSPT_ENTRIES];
+    IP_TABLE () {
+        state=0;
+        ip_tag = 0;
+        ip_valid = 0;
+        signature = 0;
+        address=0;
+        prev_stride = 0;
+        counter = NUM_IP_TABLE_L1_ENTRIES-1;
+        for (int i = 0; i < NUM_CSPT_ENTRIES; i++) {
+            cspt[i] = CSPT_ENTRY();
+        }
+    };
+
+};
+
+IP_TABLE trackers[NUM_CPUS][NUM_IP_TABLE_L1_ENTRIES];
+IP_TABLE trackers_ip[NUM_CPUS][IP_TRACKER_COUNT];
+
+
+// ------------------------- Updating the signature ---------------------------- // 
+uint8_t update_sig_l1(uint8_t old_sig, int delta) {                           
+    uint8_t new_sig = ((old_sig << 1) ^ (uint16_t)delta);
+    return new_sig;
+}
+
+// ------------------- Updating confidence for the CPLX class ------------------ // 
+int update_conf(int stride, int pred_stride, int conf) {
+    if (stride == pred_stride) {
+        if (conf < MAX_CONFIDENCE)
+            conf++;
+    } else {
+        if (conf > 0)
+            conf--;
+    }
+    return conf;
+}
+
+
+
+// ------------------------- Initialize the prefetcher ------------------------- // 
+void CACHE::l1d_prefetcher_initialize() 
+{
+	cout << "CPU " << cpu << " L1D Optimized prefetcher" << endl;
+    for (int i = 0; i < NUM_IP_TABLE_L1_ENTRIES; i++) {
+        trackers[cpu][i] = IP_TABLE();
+    }
+}
+
+// --------------- This is the main prefetcher operate function ---------------- // 
+void CACHE::l1d_prefetcher_operate(uint64_t addr, uint64_t ip, uint8_t cache_hit, uint8_t type, uint8_t critical_ip_flag)
+{
+    uint64_t cl_addr = addr >> LOG2_BLOCK_SIZE;
+    if (cache_hit) {
+        cache_hits++;
+    }
+    if(!warmup_over && warmup_complete[cpu] == 1){
+        warmup_over = true;
+        //
+        accm_prefs_useful = this->pf_useful;
+        cout << "Hello " << accm_prefs_useful << endl; 
+        num_prefs = 0;
+        prefetcher = IP_STRIDE;
+        runstate = TRAIN;
+        accm_cache_hits = cache_hits;
+        num_cache_hits_ips = 0;
+        num_cache_hits_cplx = 0;
+        num_cache_hits_nl = 0;
+        total_accesses = 0;
+        accm_total_accesses = 0;
+        accesses_cplx = 0;
+        accesses_ips = 0;
+        accesses_nl = 0;
+        
+        
+    }
+    total_accesses++;
+
+    if (warmup_complete[cpu] == 1) {
+
+        if (num_prefs%WORKING_PERIOD == 0 && REDO_TOGGLE == 1) {
+            
+            cout<< "TRAIN ACCURACY: " << accuracy_ip << " " << accuracy_cplx << " " << accuracy_nl << endl;
+            cout<< "RUN ACCURACY: " << (double)(this->pf_useful - accm_prefs_useful)/(double)num_prefs << endl;
+            runstate = TRAIN;
+            prefetcher = IP_STRIDE;
+            num_prefs = 0;
+            accm_cache_hits = cache_hits;
+            num_cache_hits_ips = 0;
+            num_cache_hits_cplx = 0;
+            num_cache_hits_nl = 0;
+            accm_prefs_useful = this->pf_useful;
+            total_accesses = 0;
+            accm_total_accesses = 0;
+            accesses_cplx = 0;
+            accesses_ips = 0;
+            accesses_nl = 0;
+
+        }
+    
+        if(runstate == TRAIN){
+            if (prefetcher == IP_STRIDE) { 
+                // IP-Stride Prefetcher
+                // ------------------------ Add IP-Stride pf_address logic here ----------------------- // 
+                bool is_present=0;
+                int index=-1;
+                for(int i=0;i<IP_TRACKER_COUNT;i++){
+                    if(trackers_ip[cpu][i].ip_valid!=0)
+                        trackers_ip[cpu][i].counter++;
+                    if(trackers_ip[cpu][i].ip_tag==ip){
+                        index=i;
+                        is_present=1;
+                        trackers_ip[cpu][i].counter=0;
+                    }
+                }
+                if(is_present){
+                    if(trackers_ip[cpu][index].state==0){
+                        trackers_ip[cpu][index].prev_stride=(addr>>LOG2_BLOCK_SIZE)-(trackers_ip[cpu][index].address>>LOG2_BLOCK_SIZE);
+                        trackers_ip[cpu][index].address=addr;
+                        trackers_ip[cpu][index].state=1;
+                        return;
+                    }
+                    int new_stride=(addr>>LOG2_BLOCK_SIZE)-(trackers_ip[cpu][index].address>>LOG2_BLOCK_SIZE);
+                    if(trackers_ip[cpu][index].prev_stride==new_stride){
+                        trackers_ip[cpu][index].address=addr;
+                        trackers_ip[cpu][index].state++;
+                        if(trackers_ip[cpu][index].state>1){
+                            for(int i=0;i<PREFETCH_DEGREE;i++){
+                                uint64_t pf_address=(((addr >> LOG2_BLOCK_SIZE)+((i+1)*new_stride))<<LOG2_BLOCK_SIZE);
+                                if ((pf_address >> LOG2_PAGE_SIZE) != (addr >> LOG2_PAGE_SIZE))
+                                break;
+                                prefetch_line(ip, addr, pf_address, FILL_L1, 0);
+                                num_prefs++;
+                            }
+                        }
+                    }
+                    else{
+                        trackers_ip[cpu][index].state=1;
+                        trackers_ip[cpu][index].prev_stride=(addr>>LOG2_BLOCK_SIZE)-(trackers_ip[cpu][index].address>>LOG2_BLOCK_SIZE);
+                        trackers_ip[cpu][index].address=addr;
+                    }
+                }
+                else{
+                    srand(time(0));
+                    index=-1; 
+                    int maximum=-1;
+                    int flag=0;
+                    for(int i=0;i<IP_TRACKER_COUNT;i++){
+                        if(trackers_ip[cpu][i].ip_tag==0){
+                            index=i;
+                            flag=1;
+                            break;
+                        }
+                        // if(trackers_cplx[cpu][i].counter>maximum){
+                        //     maximum=trackers_cplx[cpu][i].counter;
+                        //     index=i;
+                        // }
+                    }
+                    if(flag==0){
+                        index=rand()% IP_TRACKER_COUNT;//Random Replacement Policy
+                    }
+                    trackers_ip[cpu][index].ip_valid=1;
+                    trackers_ip[cpu][index].ip_tag=ip;
+                    trackers_ip[cpu][index].address=addr;
+                    trackers_ip[cpu][index].prev_stride=0;
+                    trackers_ip[cpu][index].state=0;
+                    trackers_ip[cpu][index].counter=0; //LRU
+                }
+        
+
+
+                if (num_prefs>=PHASE_LENGTH) {
+                    num_ips_useful = this->pf_useful;
+                    num_prefs_to_next_level_ip=this->pf_lower_level-accm_prefs_useful;
+                    //accuracy_ip = (double)num_ips_useful/(double)num_prefs_to_next_level_ip;
+                    num_cache_hits_ips = cache_hits - accm_cache_hits;
+                    accm_cache_hits = cache_hits;
+                    accesses_ips = total_accesses - accm_total_accesses;
+                    accm_total_accesses = total_accesses;
+                    accuracy_ip = 0.8*(double)num_ips_useful/(double)(num_ips_useful + (accesses_ips-num_cache_hits_ips))+0.2*(double)num_ips_useful/(double)num_prefs_to_next_level_ip; //ye check kar @arohan
+                    cout << "Accuracy IP Stride" << accuracy_ip << " with num_ips_useful " << num_ips_useful << " and total pref request " << num_prefs << " " << this->pf_useful << endl;
+                    runstate = TRAIN;
+                    prefetcher = CPLX;
+                    num_prefs = 0;
+                }
+
+
+
+
+            }
+            else if (prefetcher == CPLX) {
+                // Complex-Stride Prefetcher
+                // --------------------- Add Complex-Stride pf_address logic here --------------------- // 
+                bool is_present1=0;
+                int index1=-1;
+                for(int i=0;i<NUM_IP_TABLE_L1_ENTRIES;i++){
+                    if(trackers[cpu][i].ip_tag!=0)
+                        trackers[cpu][i].counter++;
+                    if(trackers[cpu][i].ip_tag==ip){
+                        index1=i;
+                        is_present1=1;
+                        trackers[cpu][i].counter=0;
+                    }
+                }
+                if(is_present1){
+                    bool is_present2=1;
+                    int index2=-1;
+                    if (((addr) >> LOG2_PAGE_SIZE) != (trackers[cpu][index1].address >> LOG2_PAGE_SIZE)) {
+                        trackers[cpu][index1].address = addr;
+                        return;
+                    }
+                    int new_stride=cl_addr-(trackers[cpu][index1].address >> LOG2_BLOCK_SIZE);
+                    
+                    index2 = trackers[cpu][index1].signature;
+                
+                    //cout << "Hi1" << endl;
+                    int confidence = update_conf(new_stride,trackers[cpu][index1].cspt[index2].stride, trackers[cpu][index1].cspt[index2].conf);
+                    trackers[cpu][index1].cspt[index2].conf=confidence;
+                    uint8_t new_signature=update_sig_l1(trackers[cpu][index1].signature,new_stride);
+                    trackers[cpu][index1].signature=new_signature;
+                    if(confidence==0){
+                        trackers[cpu][index1].cspt[index2].stride=new_stride;
+                    }
+                    //int stride_to_prefetch=0;
+                    int stride_for_prefetch=-1;
+                    int confidence_for_prefetch=0;
+
+                    stride_for_prefetch = trackers[cpu][index1].cspt[new_signature].stride;
+                    confidence_for_prefetch = trackers[cpu][index1].cspt[new_signature].conf;
+                    
+                    if (stride_for_prefetch != 0 && confidence_for_prefetch != 0) {
+                        for (int i=1; i<=PREFETCH_DEGREE; i++) {
+                            if ((addr)>>LOG2_PAGE_SIZE == (trackers[cpu][index1].address >> LOG2_PAGE_SIZE)) {
+                                prefetch_line(ip, addr, ((cl_addr + stride_for_prefetch*i) << LOG2_BLOCK_SIZE), FILL_L1, 0);
+                                num_prefs++;
+                            }
+                            else {
+                                break;
+                            }
+                        }
+                    }
+                
+                }
+                else{
+                    srand(time(0));
+                    int index=-1; 
+                    int maximum=-1;
+                    int flag=0;
+                    for(int i=0;i<NUM_IP_TABLE_L1_ENTRIES;i++){
+                        if(trackers[cpu][i].ip_tag==0){
+                            index=i;
+                            flag=1;
+                            break;
+                        }
+                        // if(trackers[cpu][i].counter>maximum){
+                        //     maximum=trackers[cpu][i].counter;
+                        //     index=i;
+                        // }
+                    }
+                    if(flag==0){
+                        index=rand()% NUM_IP_TABLE_L1_ENTRIES;//Random Replacement Policy
+                    }
+                    trackers[cpu][index].ip_tag=ip;
+                    trackers[cpu][index].address=addr;
+                    trackers[cpu][index].ip_valid=1;
+                    trackers[cpu][index].signature=0;//signature always starts from zero
+                    trackers[cpu][index].counter=0;
+                    for (int i = 0; i < NUM_CSPT_ENTRIES; i++) {
+                        trackers[cpu][index].cspt[i] = CSPT_ENTRY();
+                    }
+                }
+                if (num_prefs>=PHASE_LENGTH) {
+                    num_cplx_useful = this->pf_useful - num_ips_useful;
+                    num_prefs_to_next_level_cplx=this->pf_lower_level-num_prefs_to_next_level_ip;
+                    num_cache_hits_cplx = cache_hits - accm_cache_hits;
+                    accm_cache_hits = cache_hits;
+                    accesses_cplx = total_accesses - accm_total_accesses;
+                    accm_total_accesses = total_accesses;
+
+                    accuracy_cplx = 0.8*(double)num_cplx_useful/(double)(num_cplx_useful + (accesses_cplx-num_cache_hits_cplx))+0.2*(double)num_cplx_useful/(double)num_prefs_to_next_level_cplx; //ye check kar @arohan
+                    //accuracy_cplx = (double)num_cplx_useful/(double)num_prefs_to_next_level_cplx;
+                    cout << "Accuracy Complex Stride" << accuracy_cplx << " with num_cplx_useful " << num_cplx_useful << " and total pref request " << num_prefs << " " << this->pf_useful << endl;
+                    runstate = TRAIN;
+                    prefetcher = NL;
+                    num_prefs = 0;
+                }
+
+
+
+            }
+            else if (prefetcher == NL) {
+                // Next-Line Prefetcher
+                // ----------------------- Add Next-line pf_address logic here ------------------------ // 
+                for(int i=1;i<=PREFETCH_DEGREE;i++){
+                    uint64_t pf_address = ((cl_addr + i) << LOG2_BLOCK_SIZE);
+                    if ((pf_address >> LOG2_PAGE_SIZE) != (addr >> LOG2_PAGE_SIZE))
+                        break;
+                    prefetch_line(ip, addr, pf_address, FILL_L1, 0);
+                    num_prefs++;
+                }
+
+                if (num_prefs>=PHASE_LENGTH) {
+                    num_nl_useful = this->pf_useful - num_cplx_useful - num_ips_useful;
+                    num_prefs_to_next_level_nl=this->pf_lower_level-num_prefs_to_next_level_cplx-num_prefs_to_next_level_ip;
+                    num_cache_hits_nl = cache_hits - accm_cache_hits;
+                    accm_cache_hits = cache_hits;
+                    accesses_nl = total_accesses - accm_total_accesses;
+                    accm_total_accesses = total_accesses;
+                    accuracy_nl = 0.8*(double)num_nl_useful/(double)(num_nl_useful + (accesses_nl-num_cache_hits_nl))+0.2*(double)num_nl_useful/(double)num_prefs_to_next_level_nl; //ye check kar @arohan
+                    // accuracy_nl = (double)num_nl_useful/(double)num_prefs_to_next_level_nl;
+                    cout << "Accuracy NL" << accuracy_nl << " with num_nl_useful " << num_nl_useful << " and total pref request " << num_prefs << " " << this->pf_useful << endl;
+                    runstate = RUN;
+                    prefetcher = IP_STRIDE;
+                    double maximum = accuracy_ip;
+                    if (accuracy_cplx >= maximum) {
+                        maximum = accuracy_cplx;
+                        prefetcher = CPLX;
+                    }
+                    if (accuracy_nl >= maximum) {
+                        maximum = accuracy_nl;
+                        prefetcher = NL;
+                    }
+                    num_prefs = 0;
+                    cout << "Finally decided to use " << prefetcher << endl;
+                    cout << "IP Stride Accuracy:" << accuracy_ip << endl;
+                    cout << "Complex Accuracy:" <<accuracy_cplx << endl;
+                    cout << "Next Line Accuracy:" <<accuracy_nl << endl;
+                    accm_prefs_useful = this->pf_useful;
+                }
+
+            }
+            else {
+                assert(0);
+            }
+        }
+        else if (runstate==RUN){
+            if (prefetcher == IP_STRIDE) { 
+                // IP-Stride Prefetcher
+                // ------------------------ Add IP-Stride pf_address logic here ----------------------- // 
+                bool is_present=0;
+                int index=-1;
+                for(int i=0;i<IP_TRACKER_COUNT;i++){
+                    if(trackers_ip[cpu][i].ip_valid!=0)
+                        trackers_ip[cpu][i].counter++;
+                    if(trackers_ip[cpu][i].ip_tag==ip){
+                        index=i;
+                        is_present=1;
+                        trackers_ip[cpu][i].counter=0;
+                    }
+                }
+                if(is_present){
+                    if(trackers_ip[cpu][index].state==0){
+                        trackers_ip[cpu][index].prev_stride=(addr>>LOG2_BLOCK_SIZE)-(trackers_ip[cpu][index].address>>LOG2_BLOCK_SIZE);
+                        trackers_ip[cpu][index].address=addr;
+                        trackers_ip[cpu][index].state=1;
+                        return;
+                    }
+                    int new_stride=(addr>>LOG2_BLOCK_SIZE)-(trackers_ip[cpu][index].address>>LOG2_BLOCK_SIZE);
+                    if(trackers_ip[cpu][index].prev_stride==new_stride){
+                        trackers_ip[cpu][index].address=addr;
+                        trackers_ip[cpu][index].state++;
+                        if(trackers_ip[cpu][index].state>1){
+                            for(int i=0;i<PREFETCH_DEGREE;i++){
+                                uint64_t pf_address=(((addr >> LOG2_BLOCK_SIZE)+((i+1)*new_stride))<<LOG2_BLOCK_SIZE);
+                                if ((pf_address >> LOG2_PAGE_SIZE) != (addr >> LOG2_PAGE_SIZE))
+                                break;
+                                prefetch_line(ip, addr, pf_address, FILL_L1, 0);
+                                num_prefs++;
+                            }
+                        }
+                    }
+                    else{
+                        trackers_ip[cpu][index].state=1;
+                        trackers_ip[cpu][index].prev_stride=(addr>>LOG2_BLOCK_SIZE)-(trackers_ip[cpu][index].address>>LOG2_BLOCK_SIZE);
+                        trackers_ip[cpu][index].address=addr;
+                    }
+                }
+                else{
+                    srand(time(0));
+                    index=-1; 
+                    int maximum=-1;
+                    int flag=0;
+                    for(int i=0;i<IP_TRACKER_COUNT;i++){
+                        if(trackers_ip[cpu][i].ip_tag==0){
+                            index=i;
+                            flag=1;
+                            break;
+                        }
+                        // if(trackers_cplx[cpu][i].counter>maximum){
+                        //     maximum=trackers_cplx[cpu][i].counter;
+                        //     index=i;
+                        // }
+                    }
+                    if(flag==0){
+                        index=rand()% IP_TRACKER_COUNT;//Random Replacement Policy
+                    }
+                    trackers_ip[cpu][index].ip_valid=1;
+                    trackers_ip[cpu][index].ip_tag=ip;
+                    trackers_ip[cpu][index].address=addr;
+                    trackers_ip[cpu][index].prev_stride=0;
+                    trackers_ip[cpu][index].state=0;
+                    trackers_ip[cpu][index].counter=0; //LRU
+                }
+            }
+            else if (prefetcher == CPLX) {
+                // Complex-Stride Prefetcher
+                // --------------------- Add Complex-Stride pf_address logic here --------------------- // 
+                bool is_present1=0;
+                int index1=-1;
+                for(int i=0;i<NUM_IP_TABLE_L1_ENTRIES;i++){
+                    if(trackers[cpu][i].ip_tag!=0)
+                        trackers[cpu][i].counter++;
+                    if(trackers[cpu][i].ip_tag==ip){
+                        index1=i;
+                        is_present1=1;
+                        trackers[cpu][i].counter=0;
+                    }
+                }
+                if(is_present1){
+                    bool is_present2=1;
+                    int index2=-1;
+                    if (((addr) >> LOG2_PAGE_SIZE) != (trackers[cpu][index1].address >> LOG2_PAGE_SIZE)) {
+                        trackers[cpu][index1].address = addr;
+                        return;
+                    }
+                    int new_stride=cl_addr-(trackers[cpu][index1].address >> LOG2_BLOCK_SIZE);
+                    
+                    index2 = trackers[cpu][index1].signature;
+                
+                    //cout << "Hi1" << endl;
+                    int confidence = update_conf(new_stride,trackers[cpu][index1].cspt[index2].stride, trackers[cpu][index1].cspt[index2].conf);
+                    trackers[cpu][index1].cspt[index2].conf=confidence;
+                    uint8_t new_signature=update_sig_l1(trackers[cpu][index1].signature,new_stride);
+                    trackers[cpu][index1].signature=new_signature;
+                    if(confidence==0){
+                        trackers[cpu][index1].cspt[index2].stride=new_stride;
+                    }
+                    //int stride_to_prefetch=0;
+                    int stride_for_prefetch=-1;
+                    int confidence_for_prefetch=0;
+
+                    stride_for_prefetch = trackers[cpu][index1].cspt[new_signature].stride;
+                    confidence_for_prefetch = trackers[cpu][index1].cspt[new_signature].conf;
+                    
+                    if (stride_for_prefetch != 0 && confidence_for_prefetch != 0) {
+                        for (int i=1; i<=PREFETCH_DEGREE; i++) {
+                            if ((addr)>>LOG2_PAGE_SIZE == (trackers[cpu][index1].address >> LOG2_PAGE_SIZE)) {
+                                prefetch_line(ip, addr, ((cl_addr + stride_for_prefetch*i) << LOG2_BLOCK_SIZE), FILL_L1, 0);
+                                num_prefs++;
+                            }
+                            else {
+                                break;
+                            }
+                        }
+                    }
+                
+                }
+                else{
+                    srand(time(0));
+                    int index=-1; 
+                    int maximum=-1;
+                    int flag=0;
+                    for(int i=0;i<NUM_IP_TABLE_L1_ENTRIES;i++){
+                        if(trackers[cpu][i].ip_tag==0){
+                            index=i;
+                            flag=1;
+                            break;
+                        }
+                        // if(trackers[cpu][i].counter>maximum){
+                        //     maximum=trackers[cpu][i].counter;
+                        //     index=i;
+                        // }
+                    }
+                    if(flag==0){
+                        index=rand()% NUM_IP_TABLE_L1_ENTRIES;//Random Replacement Policy
+                    }
+                    trackers[cpu][index].ip_tag=ip;
+                    trackers[cpu][index].address=addr;
+                    trackers[cpu][index].ip_valid=1;
+                    trackers[cpu][index].signature=0;//signature always starts from zero
+                    trackers[cpu][index].counter=0;
+                    for (int i = 0; i < NUM_CSPT_ENTRIES; i++) {
+                        trackers[cpu][index].cspt[i] = CSPT_ENTRY();
+                    }
+                }
+
+
+
+            }
+            else if (prefetcher == NL) {
+                // Next-Line Prefetcher
+                // ----------------------- Add Next-line pf_address logic here ------------------------ // 
+                for(int i=1;i<=PREFETCH_DEGREE;i++){
+                    uint64_t pf_address = ((cl_addr + i) << LOG2_BLOCK_SIZE);
+                    if ((pf_address >> LOG2_PAGE_SIZE) != (addr >> LOG2_PAGE_SIZE))
+                        break;
+                    prefetch_line(ip, addr, pf_address, FILL_L1, 0);
+                    num_prefs++;
+                }
+
+            }
+            else {
+                assert(0);
+            }
+        }
+
+    }
+
+	return;
+
+}
+
+// ------------------------- DO NOT CHANGE -------------------------------- //
+void CACHE::l1d_prefetcher_notify_about_dtlb_eviction(uint64_t addr, uint32_t set, uint32_t way, uint8_t prefetch, uint64_t evicted_addr, uint32_t metadata_in)
+{
+    
+}
+
+void CACHE::l1d_prefetcher_cache_fill(uint64_t v_addr, uint64_t addr, uint32_t set, uint32_t way, uint8_t prefetch, uint64_t v_evicted_addr, uint64_t evicted_addr, uint32_t metadata_in)
+{
+    
+}
+
+void CACHE::l1d_prefetcher_final_stats()
+{
+	cout << "CPU " << cpu << " L1D optimized prefetcher final stats" << endl;
+	cout << "Degree: " << PREFETCH_DEGREE << endl;
+}
+// ------------------------- DO NOT CHANGE -------------------------------- //
