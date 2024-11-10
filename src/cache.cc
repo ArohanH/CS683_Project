@@ -6,6 +6,12 @@
 #include<vector>
 
 #include<iterator>
+//Arohan
+#include <cstdlib>   // For srand() and rand()
+#include <ctime>     // For time()
+
+#define THRESHOLD_ACCESSES 10000
+//Arohan
 
 uint64_t l2pf_access = 0;
 uint8_t L2C_BYPASS_KNOB = 0;    //Neelu: Set to 1: Bypass Instructions 2: Bypass Data 3: Bypass All
@@ -53,6 +59,95 @@ void CACHE::handle_fill()
 
         // find victim
         uint32_t set = get_set(MSHR.entry[mshr_index].address), way;
+
+        //Arohan(modification) //With 50 percent probality choose your own set or the second mapped set
+
+        if(cache_type==IS_L1I){
+            std::srand(static_cast<unsigned int>(std::time(0))); // Seed with current time
+            bool outcome = (std::rand() % 2 == 0); // 50% chance for true or false
+
+            if(outcome==true){
+            //do nothing
+                if(MSHR.entry[mshr_index].ip>18000000000000000000){
+                    if(num_of_kernel_access_set_wise[fill_cpu][set]>THRESHOLD_ACCESSES){
+                        int minimum_set=0;
+                        uint64_t minimum=num_of_kernel_access_set_wise[fill_cpu][0]+num_of_user_access_set_wise[fill_cpu][0];
+                        for(int i=0;i<L1I_SET;i++){
+                            if(num_of_kernel_access_set_wise[fill_cpu][i]+num_of_user_access_set_wise[fill_cpu][i]<minimum){
+                                minimum_set=i;
+                                minimum=num_of_kernel_access_set_wise[fill_cpu][i]+num_of_user_access_set_wise[fill_cpu][i];
+                            }
+                        }
+                        set_mappings_kernel[set]=minimum_set;
+                        num_of_kernel_access_set_wise[fill_cpu][set]=0;
+                    }
+                }
+                else{
+                    if(num_of_user_access_set_wise[fill_cpu][set]>THRESHOLD_ACCESSES){
+                        int minimum_set=0;
+                        uint64_t minimum=num_of_user_access_set_wise[fill_cpu][0]+num_of_kernel_access_set_wise[fill_cpu][0];
+                        for(int i=0;i<L1I_SET;i++){
+                            if(num_of_user_access_set_wise[fill_cpu][i]+num_of_kernel_access_set_wise[fill_cpu][i]<minimum){
+                                minimum_set=i;
+                                minimum=num_of_user_access_set_wise[fill_cpu][i]+num_of_kernel_access_set_wise[fill_cpu][i];
+                            }
+                        }
+                        set_mappings_user[set]=minimum_set;
+                        num_of_user_access_set_wise[fill_cpu][set]=0;
+                    }
+                }
+            }
+            else{
+                if(MSHR.entry[mshr_index].ip>18000000000000000000){
+                    if(num_of_kernel_access_set_wise[fill_cpu][set]>THRESHOLD_ACCESSES){
+                        int minimum_set=0;
+                        uint64_t minimum=num_of_kernel_access_set_wise[fill_cpu][0]+num_of_user_access_set_wise[fill_cpu][0];
+                        for(int i=0;i<L1I_SET;i++){
+                            if(num_of_kernel_access_set_wise[fill_cpu][i]+num_of_user_access_set_wise[fill_cpu][i]<minimum){
+                                minimum_set=i;
+                                minimum=num_of_kernel_access_set_wise[fill_cpu][i]+num_of_user_access_set_wise[fill_cpu][i];
+                            }
+                        }
+                        set_mappings_kernel[set]=minimum_set;
+                        num_of_kernel_access_set_wise[fill_cpu][set]=0;
+                    }
+                    if(set_mappings_kernel.find(set)==set_mappings_kernel.end()){
+                        //do nothing
+                    }
+                    else{
+                        set=set_mappings_kernel[set];
+                        if(set>L1I_SET){
+                            cout << "ERROR MORE NO OF SETS 1" << endl;
+                        }
+                    }
+                }
+                else{
+                    if(num_of_user_access_set_wise[fill_cpu][set]>THRESHOLD_ACCESSES){
+                        int minimum_set=0;
+                        uint64_t minimum=num_of_user_access_set_wise[fill_cpu][0]+num_of_kernel_access_set_wise[fill_cpu][0];
+                        for(int i=0;i<L1I_SET;i++){
+                            if(num_of_user_access_set_wise[fill_cpu][i]+num_of_kernel_access_set_wise[fill_cpu][i]<minimum){
+                                minimum_set=i;
+                                minimum=num_of_user_access_set_wise[fill_cpu][i]+num_of_kernel_access_set_wise[fill_cpu][i];
+                            }
+                        }
+                        set_mappings_user[set]=minimum_set;
+                        num_of_user_access_set_wise[fill_cpu][set]=0;
+                    }
+                    if(set_mappings_user.find(set)==set_mappings_user.end()){
+                        //do nothing
+                    }
+                    else{
+                        if(set>L1I_SET){
+                            cout << "ERROR MORE NO OF SETS 2" << endl;
+                        }
+                        set=set_mappings_user[set];
+                    }
+                }
+            }
+        }   
+        //Arohan (modification) 
+
         way = (this->*find_victim)(fill_cpu, MSHR.entry[mshr_index].instr_id, set, block[set], MSHR.entry[mshr_index].ip, MSHR.entry[mshr_index].full_addr, MSHR.entry[mshr_index].type);
 
 
@@ -533,20 +628,28 @@ void CACHE::handle_fill()
                 if(block[set][way].ip>18000000000000000000){
                     if(MSHR.entry[mshr_index].ip>18000000000000000000){
                         num_of_replacements_by_kernel_to_victim_kernel[fill_cpu]++;
+                        if(cache_type==IS_L1I)
+                            num_of_sim_miss_kernel_kernel_set_wise[fill_cpu][set]++;
                         num_of_sim_miss_in_kernel_mode[fill_cpu][MSHR.entry[mshr_index].type]++;
                     }
                     else{
                         num_of_replacements_by_user_to_victim_kernel[fill_cpu]++;
+                        if(cache_type==IS_L1I)
+                            num_of_sim_miss_user_kernel_set_wise[fill_cpu][set]++;
                         num_of_sim_miss_in_user_mode[fill_cpu][MSHR.entry[mshr_index].type]++;
                     }
                 }
                 else{
                     if(MSHR.entry[mshr_index].ip>18000000000000000000){
                         num_of_replacements_by_kernel_to_victim_user[fill_cpu]++;
+                        if(cache_type==IS_L1I)
+                            num_of_sim_miss_kernel_user_set_wise[fill_cpu][set]++;
                         num_of_sim_miss_in_kernel_mode[fill_cpu][MSHR.entry[mshr_index].type]++;
                     }
                     else{
                         num_of_replacements_by_user_to_victim_user[fill_cpu]++;
+                        if(cache_type==IS_L1I)
+                            num_of_sim_miss_user_user_set_wise[fill_cpu][set]++;
                         num_of_sim_miss_in_user_mode[fill_cpu][MSHR.entry[mshr_index].type]++;
                     }
                 }
@@ -788,7 +891,70 @@ if (writeback_cpu == NUM_CPUS)
 
         // access cache
         uint32_t set = get_set(WQ.entry[index].address);
-        int way = check_hit(&WQ.entry[index]);
+        if(cache_type==IS_L1I){
+            if(set>L1I_SET){
+                cout << "ERROR MORE NO OF SETS 11" << endl;
+            }
+        }
+        int way = check_hit(&WQ.entry[index],set);
+
+
+            //Arohan
+            if(cache_type==IS_L1I){
+                if(way<0){
+                    uint32_t second_set;
+                    if(WQ.entry[index].ip>18000000000000000000){
+                        if(set_mappings_kernel.find(set)!=set_mappings_kernel.end()){
+                            second_set=set_mappings_kernel[set];
+                            num_of_kernel_access_set_wise[writeback_cpu][set]++;
+                            num_of_kernel_access_set_wise[writeback_cpu][second_set]++;
+                            if(second_set>L1I_SET){
+                                cout << "ERROR MORE NO OF SETS 7" << endl;
+                            }
+                            way=check_hit(&WQ.entry[index],second_set);
+                            if(way>=0){
+                                set=second_set;
+                                if(set>L1I_SET){
+                                    cout << "ERROR MORE NO OF SETS 3" << endl;
+                                }
+                            }
+                        }
+                        else{
+                            num_of_kernel_access_set_wise[writeback_cpu][set]++;
+                        }
+                        
+                    }
+                    else{
+                        if(set_mappings_user.find(set)!=set_mappings_user.end()){
+                            second_set=set_mappings_user[set];
+                            num_of_user_access_set_wise[writeback_cpu][set]++;
+                            num_of_user_access_set_wise[writeback_cpu][second_set]++;
+                            if(second_set>L1I_SET){
+                                    cout << "ERROR MORE NO OF SETS 8" << endl;
+                            }
+                            way=check_hit(&WQ.entry[index],second_set);
+                            if(way>=0){
+                                set=second_set;
+                                if(set>L1I_SET){
+                                    cout << "ERROR MORE NO OF SETS 4" << endl;
+                                }
+                            }
+                        }
+                        else{
+                             num_of_user_access_set_wise[writeback_cpu][set]++;
+                        }
+                    }
+                }
+                else{
+                    if(WQ.entry[index].ip>18000000000000000000){
+                        num_of_kernel_access_set_wise[writeback_cpu][set]++;
+                    }
+                    else{
+                        num_of_user_access_set_wise[writeback_cpu][set]++;
+                    }
+                }
+            }
+            //Arohan
 
         //Neelu: For Ideal Critical IP Prefetcher
         /*if(cache_type == IS_L1D)
@@ -1110,20 +1276,28 @@ if (writeback_cpu == NUM_CPUS)
                         if(block[set][way].ip>18000000000000000000){
                             if(WQ.entry[index].ip>18000000000000000000){
                                 num_of_replacements_by_kernel_to_victim_kernel[writeback_cpu]++;
+                                if(cache_type==IS_L1I)
+                                    num_of_sim_miss_kernel_kernel_set_wise[writeback_cpu][set]++;
                                 num_of_sim_miss_in_kernel_mode[writeback_cpu][WQ.entry[index].type]++;
                             }
                             else{
                                 num_of_replacements_by_user_to_victim_kernel[writeback_cpu]++;
+                                if(cache_type==IS_L1I)
+                                    num_of_sim_miss_user_kernel_set_wise[writeback_cpu][set]++;
                                 num_of_sim_miss_in_user_mode[writeback_cpu][WQ.entry[index].type]++;
                             }
                         }
                         else{
                             if(WQ.entry[index].ip>18000000000000000000){
                                 num_of_replacements_by_kernel_to_victim_user[writeback_cpu]++;
+                                 if(cache_type==IS_L1I)
+                                    num_of_sim_miss_kernel_user_set_wise[writeback_cpu][set]++;
                                 num_of_sim_miss_in_kernel_mode[writeback_cpu][WQ.entry[index].type]++;
                             }
                             else{
                                 num_of_replacements_by_user_to_victim_user[writeback_cpu]++;
+                                 if(cache_type==IS_L1I)
+                                    num_of_sim_miss_user_user_set_wise[writeback_cpu][set]++;
                                 num_of_sim_miss_in_user_mode[writeback_cpu][WQ.entry[index].type]++;
                             }
                         }
@@ -1516,7 +1690,71 @@ if((cache_type == IS_L1I || cache_type == IS_L1D) && reads_ready.size() == 0)
 
             // access cache
             uint32_t set = get_set(RQ.entry[index].address);
-            int way = check_hit(&RQ.entry[index]);
+            if(cache_type==IS_L1I){
+                if(set>L1I_SET){
+                    cout << "ERROR MORE NO OF SETS 12" << endl;
+                }
+            }
+            int way = check_hit(&RQ.entry[index],set);
+
+
+            //Arohan
+            if(cache_type==IS_L1I){
+                if(way<0){
+                    uint32_t second_set;
+                    if(RQ.entry[index].ip>18000000000000000000){
+                        if(set_mappings_kernel.find(set)!=set_mappings_kernel.end()){
+                            second_set=set_mappings_kernel[set];
+                            num_of_kernel_access_set_wise[read_cpu][set]++;
+                            num_of_kernel_access_set_wise[read_cpu][second_set]++;
+                            if(second_set>L1I_SET){
+                                    cout << "ERROR MORE NO OF SETS 9" << endl;
+                            }
+                            way=check_hit(&RQ.entry[index],second_set);
+                            if(way>=0){
+                                set=second_set;
+                                if(set>L1I_SET){
+                                    cout << "ERROR MORE NO OF SETS 5" << endl;
+                                }
+                            }
+                        }
+                        else{
+                            num_of_kernel_access_set_wise[read_cpu][set]++;
+                        }
+                        
+                    }
+                    else{
+                        if(set_mappings_user.find(set)!=set_mappings_user.end()){
+                            second_set=set_mappings_user[set];
+                            num_of_user_access_set_wise[read_cpu][set]++;
+                            num_of_user_access_set_wise[read_cpu][second_set]++;
+                            if(second_set>L1I_SET){
+                                    cout << "ERROR MORE NO OF SETS 10" << endl;
+                            }
+                            way=check_hit(&RQ.entry[index],second_set);
+                            if(way>=0){
+                                set=second_set;
+                                 if(set>L1I_SET){
+                                    cout << "ERROR MORE NO OF SETS 6" << endl;
+                                }
+                            }
+                        }
+                        else{
+                            num_of_user_access_set_wise[read_cpu][set]++;
+                        }
+                    }
+                }
+                else{
+                    if(RQ.entry[index].ip>18000000000000000000){
+                        num_of_kernel_access_set_wise[read_cpu][set]++;
+                    }
+                    else{
+                        num_of_user_access_set_wise[read_cpu][set]++;
+                    }
+                }
+            }
+            //Arohan
+
 
 
             //Neelu: For Ideal Critical IP Prefetcher
@@ -2493,7 +2731,10 @@ if((cache_type == IS_L1I || cache_type == IS_L1D) && reads_ready.size() == 0)
 
                     // access cache
                     uint32_t set = get_set(PQ.entry[index].address);
-                    int way = check_hit(&PQ.entry[index]);
+                    if(set>L1I_SET){
+                        cout << "ERROR MORE NO OF SETS 13" << endl;
+                    }
+                    int way = check_hit(&PQ.entry[index],set);
 
                     if (way >= 0) { // prefetch hit
 
@@ -2892,7 +3133,9 @@ if((cache_type == IS_L1I || cache_type == IS_L1D) && reads_ready.size() == 0)
 
             else
 #endif
-                return (uint32_t) (address & ((1 << lg2(NUM_SET)) - 1)); 
+            //Arohan 
+                return (uint32_t) (address & ((1 << lg2(NUM_SET)) - 1));
+            //Arohan
         }
 
         uint32_t CACHE::get_way(uint64_t address, uint32_t set)
@@ -3018,9 +3261,11 @@ if((cache_type == IS_L1I || cache_type == IS_L1D) && reads_ready.size() == 0)
                     cout << " data: " << block[set][way].data << dec << endl; });
         }
 
-        int CACHE::check_hit(PACKET *packet)
+        int CACHE::check_hit(PACKET *packet, uint32_t set)
         {
-            uint32_t set = get_set(packet->address);
+            //Arohan commented the following line
+            //uint32_t set = get_set(packet->address);
+            //Arohan commented the following line 
             int match_way = -1;
 
             if (NUM_SET < set) {
@@ -3054,6 +3299,51 @@ if((cache_type == IS_L1I || cache_type == IS_L1D) && reads_ready.size() == 0)
                     break;
                 }
             }
+            //Arohan
+            // if(cache_type==IS_L1I){
+            //     if(match_way==-1){
+            //         uint32_t second_set;
+            //         if(packet->ip>18000000000000000000){
+            //             if(set_mappings_kernel.find(set)!=set_mappings_kernel.end()){
+            //                 second_set=set_mappings_kernel[set];
+            //                 for (uint32_t way=0; way<NUM_WAY; way++) {
+            //                     if (block[second_set][way].valid && (block[second_set][way].tag == packet_tag)) {
+
+            //                         match_way = way;
+
+            //                         DP ( if (warmup_complete[packet->cpu] ) {
+            //                                 cout << "[" << NAME << "] " << __func__ << " instr_id: " << packet->instr_id << " type: " << +packet->type << hex << " addr: " << packet->address;
+            //                                 cout << " full_addr: " << packet->full_addr << " tag: " << block[set][way].tag << " data: " << block[set][way].data << dec;
+            //                                 cout << " set: " << set << " way: " << way << " lru: " << block[set][way].lru;
+            //                                 cout << " event: " << packet->event_cycle << " cycle: " << current_core_cycle[cpu] << endl; });
+
+            //                         break;
+            //                     }
+            //                 }
+            //             }
+            //         }
+            //         else{
+            //             if(set_mappings_user.find(set)!=set_mappings_user.end()){
+            //                 second_set=set_mappings_user[set];
+            //                 for (uint32_t way=0; way<NUM_WAY; way++) {
+            //                     if (block[second_set][way].valid && (block[second_set][way].tag == packet_tag)) {
+
+            //                         match_way = way;
+
+            //                         DP ( if (warmup_complete[packet->cpu] ) {
+            //                                 cout << "[" << NAME << "] " << __func__ << " instr_id: " << packet->instr_id << " type: " << +packet->type << hex << " addr: " << packet->address;
+            //                                 cout << " full_addr: " << packet->full_addr << " tag: " << block[set][way].tag << " data: " << block[set][way].data << dec;
+            //                                 cout << " set: " << set << " way: " << way << " lru: " << block[set][way].lru;
+            //                                 cout << " event: " << packet->event_cycle << " cycle: " << current_core_cycle[cpu] << endl; });
+
+            //                         break;
+            //                     }
+            //                 }
+            //             }
+            //         }
+            //     }
+            // }
+            //Arohan
 
 
 #ifdef PRINT_QUEUE_TRACE

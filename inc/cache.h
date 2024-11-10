@@ -2,6 +2,7 @@
 #define CACHE_H
 
 #include "memory_class.h"
+#include <unordered_map>
 // INICIO AGUS
 extern void notify_prefetch(uint64_t addr, uint64_t tag, uint32_t cpu, uint64_t cycle);
 // FIN AGUS
@@ -119,7 +120,7 @@ class CACHE : public MEMORY {
     uint32_t reads_available_this_cycle;
     uint8_t cache_type;
 
-    //Arohan Hazarika (Cache Replacement Stats)
+    //Arohan Hazarika (Cache Replacement Stats and Extra Data Structures)
     uint64_t num_of_replacements_by_kernel_to_victim_user[NUM_CPUS], // All of them are to track evictions (who evicts whom)
              num_of_replacements_by_kernel_to_victim_kernel[NUM_CPUS],
              num_of_replacements_by_user_to_victim_user[NUM_CPUS],
@@ -127,7 +128,15 @@ class CACHE : public MEMORY {
 
     uint64_t num_of_sim_miss_in_kernel_mode[NUM_CPUS][NUM_TYPES],//To calculate misses in kernel mode for instructions in kernel mode in both L1I and L2 cahe
              num_of_sim_miss_in_user_mode[NUM_CPUS][NUM_TYPES];//To calculate misses in user mode for instructions in user mode in both L1I and L2 Cache
-
+    
+    uint64_t num_of_sim_miss_kernel_kernel_set_wise[NUM_CPUS][L1I_SET];
+    uint64_t num_of_sim_miss_kernel_user_set_wise[NUM_CPUS][L1I_SET];
+    uint64_t num_of_sim_miss_user_kernel_set_wise[NUM_CPUS][L1I_SET];
+    uint64_t num_of_sim_miss_user_user_set_wise[NUM_CPUS][L1I_SET];
+    uint64_t num_of_kernel_access_set_wise[NUM_CPUS][L1I_SET];
+    uint64_t num_of_user_access_set_wise[NUM_CPUS][L1I_SET];
+    std::unordered_map<uint64_t,uint64_t> set_mappings_kernel;// Currently we are deploying it for only 1 CPU as all the simultations will run for 1 CPU
+    std::unordered_map<uint64_t,uint64_t> set_mappings_user; 
     //Arohan Hazarika
 
     // prefetch stats
@@ -209,6 +218,19 @@ class CACHE : public MEMORY {
                 block[i][j].lru = j;
             }
         }
+
+        //Arohan
+        for(int j=0;j<NUM_CPUS;j++){
+            for(int i=0;i<L1I_SET;i++){
+                num_of_sim_miss_kernel_kernel_set_wise[j][i]=0; 
+                num_of_sim_miss_kernel_user_set_wise[j][i]=0; 
+                num_of_sim_miss_user_kernel_set_wise[j][i]=0; 
+                num_of_sim_miss_user_user_set_wise[j][i]=0; 
+                num_of_user_access_set_wise[j][i]=0;
+                num_of_kernel_access_set_wise[j][i]=0;
+            }
+        }
+        //Arohan
 
         for (uint32_t i=0; i<NUM_CPUS; i++) {
             upper_level_icache[i] = NULL;
@@ -324,7 +346,7 @@ class CACHE : public MEMORY {
     uint32_t get_occupancy(uint8_t queue_type, uint64_t address),
              get_size(uint8_t queue_type, uint64_t address);
 
-    int  check_hit(PACKET *packet),
+    int  check_hit(PACKET *packet, uint32_t set), //Arohan added a new argument to this func
          invalidate_entry(uint64_t inval_addr),
          check_mshr(PACKET *packet),
          prefetch_line(uint64_t ip, uint64_t base_addr, uint64_t pf_addr, int prefetch_fill_level, uint32_t prefetch_metadata)/* Neelu: commenting, uint64_t prefetch_id)*/,

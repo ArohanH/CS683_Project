@@ -179,6 +179,16 @@ void print_roi_stats(uint32_t cpu, CACHE *cache)
     if(cache -> cache_type == IS_L1I){
         cout << " kernel to kernel(victim): " << cache->num_of_replacements_by_kernel_to_victim_kernel[cpu] << " kernel to user(victim): " << cache->num_of_replacements_by_kernel_to_victim_user[cpu] << " user to kernel(victim): " << cache->num_of_replacements_by_user_to_victim_kernel[cpu] << " user to user(victim): " << cache->num_of_replacements_by_user_to_victim_user[cpu] << endl;
     }
+    if(cache->cache_type == IS_L1I){
+        cout << "Printing set-wise stats for L1I Cache" << endl;
+        for(int i=0;i<L1I_SET;i++){
+            cout << "Printing for Set " << i << endl;
+            cout << cache->num_of_sim_miss_kernel_kernel_set_wise[cpu][i] << " : Kernel-Kernel for Set " << i << endl;
+            cout << cache->num_of_sim_miss_kernel_user_set_wise[cpu][i] << " : Kernel-User for Set " << i << endl;
+            cout << cache->num_of_sim_miss_user_kernel_set_wise[cpu][i] << " : User-Kernel for Set " << i << endl;
+            cout << cache->num_of_sim_miss_user_user_set_wise[cpu][i] << " : User-User for Set " << i << endl; 
+        }
+    }
     //Arohan
 
     if(TOTAL_ACCESS != 0) 

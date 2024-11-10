@@ -1,0 +1,557 @@
+*** ChampSim Multicore Out-of-Order Simulator ***
+
+Warmup Instructions: 10000000
+Simulation Instructions: 10000000
+Number of CPUs: 1
+LLC sets: 2048
+LLC ways: 16
+Off-chip DRAM Size: 4096 MB Channels: 1 Width: 64-bit Data Rate: 6400 MT/s
+CPU 0 runs ./traces/server_024.champsimtrace.xz
+.xz
+CPU 0 Bimodal branch predictor
+BTB has LRU replacement policy
+ITLB has LRU replacement policy
+DTLB has LRU replacement policy
+STLB has LRU replacement policy
+L1I has LRU replacement policy
+L1D has LRU replacement policy
+L2C has LRU replacement policy
+LLC has LRU replacement policy
+Heartbeat CPU 0 instructions: 10000000 cycles: 2878876 heartbeat IPC: 3.47358 cumulative IPC: 3.47358 (Simulation time: 0 hr 45 min 34 sec)
+
+Warmup complete CPU 0 instructions: 10000004 cycles: 2878882 (Simulation time: 0 hr 45 min 34 sec)
+
+Heartbeat CPU 0 instructions: 20000002 cycles: 26541737 heartbeat IPC: 0.422603 cumulative IPC: 0.422603 (Simulation time: 3 hr 5 min 21 sec)
+Finished CPU 0 instructions: 10000000 cycles: 23662867 cumulative IPC: 0.422603 (Simulation time: 3 hr 5 min 21 sec) 
+
+ChampSim completed all CPUs
+
+Region of Interest Statistics
+
+CPU 0 cumulative IPC: 0.422603 instructions: 10000000 cycles: 23662867
+ Total number of instructions: 10000000
+ITLB TOTAL     ACCESS:    1693799  HIT:    1598540  MISS:      95259  HIT %:     94.376  MISS %:    5.62398   MPKI: 9.5259       
+ITLB LOAD TRANSLATION ACCESS:    1693799  HIT:    1598540  MISS:      95259  HIT %:     94.376  MISS %:    5.62398   MPKI: 9.5259
+ITLB PREFETCH  REQUESTED:          0  ISSUED:          0  USEFUL:          0  USELESS:          0
+ITLB USEFUL LOAD PREFETCHES:          0 PREFETCH ISSUED TO LOWER LEVEL:          0  ACCURACY: -nan
+ITLB TIMELY PREFETCHES:          0 LATE PREFETCHES: 0 DROPPED PREFETCHES: 0
+ITLB PREFETCHES SAME FILL-ORIGIN LEVEL: 0 DIFFERENT FILL-ORIGIN LEVEL: 0
+ITLB AVERAGE MISS LATENCY: 9.01726 cycles
+ITLB RQ ACCESS:    1996125      FORWARD:          0     MERGED:     279323      TO_CACHE:    1716802
+
+ Total number of instructions: 10000000
+DTLB TOTAL     ACCESS:    2468280  HIT:    2375385  MISS:      92895  HIT %:    96.2364  MISS %:    3.76355   MPKI: 9.2895       
+DTLB LOAD TRANSLATION ACCESS:    2468280  HIT:    2375385  MISS:      92895  HIT %:    96.2364  MISS %:    3.76355   MPKI: 9.2895
+DTLB PREFETCH  REQUESTED:          0  ISSUED:          0  USEFUL:          0  USELESS:          0
+DTLB USEFUL LOAD PREFETCHES:          0 PREFETCH ISSUED TO LOWER LEVEL:          0  ACCURACY: -nan
+DTLB TIMELY PREFETCHES:          0 LATE PREFETCHES: 0 DROPPED PREFETCHES: 0
+DTLB PREFETCHES SAME FILL-ORIGIN LEVEL: 0 DIFFERENT FILL-ORIGIN LEVEL: 0
+DTLB AVERAGE MISS LATENCY: 9.38602 cycles
+DTLB RQ ACCESS:    3090434      FORWARD:          0     MERGED:     618500      TO_CACHE:    2471934
+
+ Total number of instructions: 10000000
+STLB TOTAL     ACCESS:     188154  HIT:     187730  MISS:        424  HIT %:    99.7747  MISS %:   0.225347   MPKI: 0.0424       
+STLB LOAD TRANSLATION ACCESS:     188154  HIT:     187730  MISS:        424  HIT %:    99.7747  MISS %:   0.225347   MPKI: 0.0424
+STLB PREFETCH  REQUESTED:          0  ISSUED:          0  USEFUL:          0  USELESS:          0
+STLB USEFUL LOAD PREFETCHES:          0 PREFETCH ISSUED TO LOWER LEVEL:          0  ACCURACY: -nan
+STLB TIMELY PREFETCHES:          0 LATE PREFETCHES: 0 DROPPED PREFETCHES: 0
+STLB PREFETCHES SAME FILL-ORIGIN LEVEL: 0 DIFFERENT FILL-ORIGIN LEVEL: 0
+STLB AVERAGE MISS LATENCY: 83.0236 cycles
+STLB RQ ACCESS:     188154      FORWARD:          0     MERGED:          0      TO_CACHE:     188154
+
+STLB Hit, L1D data hit: 0
+STLB Hit, L2C data hit: 0
+STLB Hit, LLC data hit: 0
+STLB Hit, LLC data miss: 0
+STLB STLB hints to L2: 0
+ Total number of instructions: 10000000
+L1D TOTAL     ACCESS:    3004905  HIT:    2810943  MISS:     193962  HIT %:    93.5452  MISS %:    6.45485   MPKI: 19.3962       
+L1D LOAD      ACCESS:    1740417  HIT:    1600781  MISS:     139636  HIT %:    91.9769  MISS %:    8.02313   MPKI: 13.9636       
+L1D RFO       ACCESS:    1264488  HIT:    1210162  MISS:      54326  HIT %:    95.7037  MISS %:    4.29628   MPKI: 5.4326        
+L1D PREFETCH  REQUESTED:          0  ISSUED:          0  USEFUL:          0  USELESS:          0
+L1D USEFUL LOAD PREFETCHES:          0 PREFETCH ISSUED TO LOWER LEVEL:          0  ACCURACY: -nan
+L1D TIMELY PREFETCHES:          0 LATE PREFETCHES: 0 DROPPED PREFETCHES: 0
+L1D PREFETCHES SAME FILL-ORIGIN LEVEL: 0 DIFFERENT FILL-ORIGIN LEVEL: 0
+L1D AVERAGE MISS LATENCY: 24.0527 cycles
+L1D RQ  ACCESS:    2390878      FORWARD:          0     MERGED:     622543      TO_CACHE:    1747562
+L1D WQ  ACCESS:    1351783      FORWARD:      20773     MERGED:       8911      TO_CACHE:    1342872
+
+L1D UNIQUE REGIONS ACCESSED: 0
+L1D REGIONS CONFLICTS: 0
+L1D Cross Page Prefetch Requests: 0
+L1D Same Page Prefetch Requests: 0
+L1D ROI Sum of L1D PQ occupancy: 0
+L1D PREFETCHES PUSHED FROM L2C: 0
+ Total number of instructions: 10000000
+L1I Total Kernel Mode Instructions: 1558064 kernel misses: 129853 and MPKI: 83.3425
+ Total User Mode Instructions: 8441936 user misses: 441930 and MPKI: 52.3494
+ kernel to kernel(victim): 67458 kernel to user(victim): 62395 user to kernel(victim): 62395 user to user(victim): 379535        
+Printing set-wise stats for L1I Cache
+Printing for Set 0
+1966 : Kernel-Kernel for Set 0
+2080 : Kernel-User for Set 0
+2080 : User-Kernel for Set 0
+10398 : User-User for Set 0
+Printing for Set 1
+1748 : Kernel-Kernel for Set 1
+2034 : Kernel-User for Set 1
+2034 : User-Kernel for Set 1
+10710 : User-User for Set 1
+Printing for Set 2
+1404 : Kernel-Kernel for Set 2
+1850 : Kernel-User for Set 2
+1850 : User-Kernel for Set 2
+13489 : User-User for Set 2
+Printing for Set 3
+829 : Kernel-Kernel for Set 3
+1516 : Kernel-User for Set 3
+1516 : User-Kernel for Set 3
+10174 : User-User for Set 3
+Printing for Set 4
+2509 : Kernel-Kernel for Set 4
+1910 : Kernel-User for Set 4
+1910 : User-Kernel for Set 4
+14613 : User-User for Set 4
+Printing for Set 5
+2293 : Kernel-Kernel for Set 5
+2071 : Kernel-User for Set 5
+2071 : User-Kernel for Set 5
+16620 : User-User for Set 5
+Printing for Set 6
+2542 : Kernel-Kernel for Set 6
+1906 : Kernel-User for Set 6
+1906 : User-Kernel for Set 6
+14941 : User-User for Set 6
+Printing for Set 7
+1817 : Kernel-Kernel for Set 7
+1935 : Kernel-User for Set 7
+1935 : User-Kernel for Set 7
+13971 : User-User for Set 7
+Printing for Set 8
+2595 : Kernel-Kernel for Set 8
+1908 : Kernel-User for Set 8
+1908 : User-Kernel for Set 8
+18204 : User-User for Set 8
+Printing for Set 9
+2258 : Kernel-Kernel for Set 9
+2293 : Kernel-User for Set 9
+2293 : User-Kernel for Set 9
+11948 : User-User for Set 9
+Printing for Set 10
+2582 : Kernel-Kernel for Set 10
+2170 : Kernel-User for Set 10
+2170 : User-Kernel for Set 10
+11867 : User-User for Set 10
+Printing for Set 11
+1936 : Kernel-Kernel for Set 11
+2024 : Kernel-User for Set 11
+2024 : User-Kernel for Set 11
+12557 : User-User for Set 11
+Printing for Set 12
+2274 : Kernel-Kernel for Set 12
+1838 : Kernel-User for Set 12
+1838 : User-Kernel for Set 12
+6764 : User-User for Set 12
+Printing for Set 13
+1913 : Kernel-Kernel for Set 13
+1786 : Kernel-User for Set 13
+1786 : User-Kernel for Set 13
+4918 : User-User for Set 13
+Printing for Set 14
+1607 : Kernel-Kernel for Set 14
+2090 : Kernel-User for Set 14
+2090 : User-Kernel for Set 14
+13923 : User-User for Set 14
+Printing for Set 15
+1552 : Kernel-Kernel for Set 15
+2111 : Kernel-User for Set 15
+2111 : User-Kernel for Set 15
+12338 : User-User for Set 15
+Printing for Set 16
+1606 : Kernel-Kernel for Set 16
+2365 : Kernel-User for Set 16
+2365 : User-Kernel for Set 16
+10307 : User-User for Set 16
+Printing for Set 17
+1710 : Kernel-Kernel for Set 17
+2007 : Kernel-User for Set 17
+2007 : User-Kernel for Set 17
+5324 : User-User for Set 17
+Printing for Set 18
+1365 : Kernel-Kernel for Set 18
+1965 : Kernel-User for Set 18
+1965 : User-Kernel for Set 18
+5767 : User-User for Set 18
+Printing for Set 19
+611 : Kernel-Kernel for Set 19
+1536 : Kernel-User for Set 19
+1536 : User-Kernel for Set 19
+7161 : User-User for Set 19
+Printing for Set 20
+1650 : Kernel-Kernel for Set 20
+1988 : Kernel-User for Set 20
+1988 : User-Kernel for Set 20
+11134 : User-User for Set 20
+Printing for Set 21
+1493 : Kernel-Kernel for Set 21
+1978 : Kernel-User for Set 21
+1978 : User-Kernel for Set 21
+14676 : User-User for Set 21
+Printing for Set 22
+1298 : Kernel-Kernel for Set 22
+2021 : Kernel-User for Set 22
+2021 : User-Kernel for Set 22
+16814 : User-User for Set 22
+Printing for Set 23
+1572 : Kernel-Kernel for Set 23
+2189 : Kernel-User for Set 23
+2189 : User-Kernel for Set 23
+16240 : User-User for Set 23
+Printing for Set 24
+1709 : Kernel-Kernel for Set 24
+2217 : Kernel-User for Set 24
+2217 : User-Kernel for Set 24
+13551 : User-User for Set 24
+Printing for Set 25
+2451 : Kernel-Kernel for Set 25
+1805 : Kernel-User for Set 25
+1805 : User-Kernel for Set 25
+11716 : User-User for Set 25
+Printing for Set 26
+1892 : Kernel-Kernel for Set 26
+1923 : Kernel-User for Set 26
+1923 : User-Kernel for Set 26
+13197 : User-User for Set 26
+Printing for Set 27
+2669 : Kernel-Kernel for Set 27
+1900 : Kernel-User for Set 27
+1900 : User-Kernel for Set 27
+13715 : User-User for Set 27
+Printing for Set 28
+2192 : Kernel-Kernel for Set 28
+1920 : Kernel-User for Set 28
+1920 : User-Kernel for Set 28
+11503 : User-User for Set 28
+Printing for Set 29
+1257 : Kernel-Kernel for Set 29
+2046 : Kernel-User for Set 29
+2046 : User-Kernel for Set 29
+9028 : User-User for Set 29
+Printing for Set 30
+1458 : Kernel-Kernel for Set 30
+2085 : Kernel-User for Set 30
+2085 : User-Kernel for Set 30
+10195 : User-User for Set 30
+Printing for Set 31
+1707 : Kernel-Kernel for Set 31
+1951 : Kernel-User for Set 31
+1951 : User-Kernel for Set 31
+11383 : User-User for Set 31
+Printing for Set 32
+2320 : Kernel-Kernel for Set 32
+2140 : Kernel-User for Set 32
+2140 : User-Kernel for Set 32
+16896 : User-User for Set 32
+Printing for Set 33
+1854 : Kernel-Kernel for Set 33
+1862 : Kernel-User for Set 33
+1862 : User-Kernel for Set 33
+9736 : User-User for Set 33
+Printing for Set 34
+2404 : Kernel-Kernel for Set 34
+1693 : Kernel-User for Set 34
+1693 : User-Kernel for Set 34
+4086 : User-User for Set 34
+Printing for Set 35
+1929 : Kernel-Kernel for Set 35
+1906 : Kernel-User for Set 35
+1906 : User-Kernel for Set 35
+9667 : User-User for Set 35
+Printing for Set 36
+2104 : Kernel-Kernel for Set 36
+1989 : Kernel-User for Set 36
+1989 : User-Kernel for Set 36
+9653 : User-User for Set 36
+Printing for Set 37
+2048 : Kernel-Kernel for Set 37
+1747 : Kernel-User for Set 37
+1747 : User-Kernel for Set 37
+7060 : User-User for Set 37
+Printing for Set 38
+1851 : Kernel-Kernel for Set 38
+1849 : Kernel-User for Set 38
+1849 : User-Kernel for Set 38
+16388 : User-User for Set 38
+Printing for Set 39
+1760 : Kernel-Kernel for Set 39
+1719 : Kernel-User for Set 39
+1719 : User-Kernel for Set 39
+14689 : User-User for Set 39
+Printing for Set 40
+2264 : Kernel-Kernel for Set 40
+1676 : Kernel-User for Set 40
+1676 : User-Kernel for Set 40
+13614 : User-User for Set 40
+Printing for Set 41
+2873 : Kernel-Kernel for Set 41
+1704 : Kernel-User for Set 41
+1704 : User-Kernel for Set 41
+11692 : User-User for Set 41
+Printing for Set 42
+2447 : Kernel-Kernel for Set 42
+1755 : Kernel-User for Set 42
+1755 : User-Kernel for Set 42
+13419 : User-User for Set 42
+Printing for Set 43
+2009 : Kernel-Kernel for Set 43
+1731 : Kernel-User for Set 43
+1731 : User-Kernel for Set 43
+16091 : User-User for Set 43
+Printing for Set 44
+2420 : Kernel-Kernel for Set 44
+1903 : Kernel-User for Set 44
+1903 : User-Kernel for Set 44
+9090 : User-User for Set 44
+Printing for Set 45
+3053 : Kernel-Kernel for Set 45
+1821 : Kernel-User for Set 45
+1821 : User-Kernel for Set 45
+15292 : User-User for Set 45
+Printing for Set 46
+2250 : Kernel-Kernel for Set 46
+1870 : Kernel-User for Set 46
+1870 : User-Kernel for Set 46
+12058 : User-User for Set 46
+Printing for Set 47
+2088 : Kernel-Kernel for Set 47
+1927 : Kernel-User for Set 47
+1927 : User-Kernel for Set 47
+15141 : User-User for Set 47
+Printing for Set 48
+1944 : Kernel-Kernel for Set 48
+1979 : Kernel-User for Set 48
+1979 : User-Kernel for Set 48
+14332 : User-User for Set 48
+Printing for Set 49
+2020 : Kernel-Kernel for Set 49
+2034 : Kernel-User for Set 49
+2034 : User-Kernel for Set 49
+14282 : User-User for Set 49
+Printing for Set 50
+1696 : Kernel-Kernel for Set 50
+2107 : Kernel-User for Set 50
+2107 : User-Kernel for Set 50
+15500 : User-User for Set 50
+Printing for Set 51
+1481 : Kernel-Kernel for Set 51
+1676 : Kernel-User for Set 51
+1676 : User-Kernel for Set 51
+6858 : User-User for Set 51
+Printing for Set 52
+2941 : Kernel-Kernel for Set 52
+1935 : Kernel-User for Set 52
+1935 : User-Kernel for Set 52
+5741 : User-User for Set 52
+Printing for Set 53
+2248 : Kernel-Kernel for Set 53
+1970 : Kernel-User for Set 53
+1970 : User-Kernel for Set 53
+9539 : User-User for Set 53
+Printing for Set 54
+2635 : Kernel-Kernel for Set 54
+1903 : Kernel-User for Set 54
+1903 : User-Kernel for Set 54
+8012 : User-User for Set 54
+Printing for Set 55
+2051 : Kernel-Kernel for Set 55
+1666 : Kernel-User for Set 55
+1666 : User-Kernel for Set 55
+6435 : User-User for Set 55
+Printing for Set 56
+2365 : Kernel-Kernel for Set 56
+1865 : Kernel-User for Set 56
+1865 : User-Kernel for Set 56
+14013 : User-User for Set 56
+Printing for Set 57
+2621 : Kernel-Kernel for Set 57
+1937 : Kernel-User for Set 57
+1937 : User-Kernel for Set 57
+14437 : User-User for Set 57
+Printing for Set 58
+2373 : Kernel-Kernel for Set 58
+1877 : Kernel-User for Set 58
+1877 : User-Kernel for Set 58
+15901 : User-User for Set 58
+Printing for Set 59
+2287 : Kernel-Kernel for Set 59
+1876 : Kernel-User for Set 59
+1876 : User-Kernel for Set 59
+12787 : User-User for Set 59
+Printing for Set 60
+1863 : Kernel-Kernel for Set 60
+1759 : Kernel-User for Set 60
+1759 : User-Kernel for Set 60
+5902 : User-User for Set 60
+Printing for Set 61
+1276 : Kernel-Kernel for Set 61
+1774 : Kernel-User for Set 61
+1774 : User-Kernel for Set 61
+5452 : User-User for Set 61
+Printing for Set 62
+1262 : Kernel-Kernel for Set 62
+1785 : Kernel-User for Set 62
+1785 : User-Kernel for Set 62
+6289 : User-User for Set 62
+Printing for Set 63
+2284 : Kernel-Kernel for Set 63
+1983 : Kernel-User for Set 63
+1983 : User-Kernel for Set 63
+6944 : User-User for Set 63
+L1I TOTAL     ACCESS:    1898438  HIT:    1326655  MISS:     571783  HIT %:    69.8814  MISS %:    30.1186   MPKI: 57.1783       
+L1I LOAD      ACCESS:    1898438  HIT:    1326655  MISS:     571783  HIT %:    69.8814  MISS %:    30.1186   MPKI: 57.1783       
+L1I PREFETCH  REQUESTED:          0  ISSUED:          0  USEFUL:          0  USELESS:          0
+L1I USEFUL LOAD PREFETCHES:          0 PREFETCH ISSUED TO LOWER LEVEL:          0  ACCURACY: -nan
+L1I TIMELY PREFETCHES:          0 LATE PREFETCHES: 0 DROPPED PREFETCHES: 0
+L1I PREFETCHES SAME FILL-ORIGIN LEVEL: 0 DIFFERENT FILL-ORIGIN LEVEL: 0
+L1I AVERAGE MISS LATENCY: 16.5115 cycles
+L1I RQ  ACCESS:    2763939      FORWARD:          0     MERGED:     767814      TO_CACHE:    1996125
+
+ Total number of instructions: 10000000
+BTB TOTAL     ACCESS:    1240656  HIT:     889588  MISS:     351068  HIT %:     71.703  MISS %:     28.297   MPKI: 35.1068       
+BTB BRANCH_DIRECT_JUMP  ACCESS:     113688  HIT:      83475  MISS:      30213
+BTB BRANCH_INDIRECT     ACCESS:      39584  HIT:      32860  MISS:       6724
+BTB BRANCH_CONDITIONAL  ACCESS:     671180  HIT:     578070  MISS:      93110
+BTB BRANCH_DIRECT_CALL  ACCESS:     175797  HIT:     106355  MISS:      69442
+BTB BRANCH_INDIRECT_CALL        ACCESS:      32306  HIT:      18138  MISS:      14168
+BTB BRANCH_RETURN       ACCESS:     208101  HIT:      70690  MISS:     137411
+BTB BRANCH_OTHER ACCESS:          0  HIT:          0  MISS:          0
+
+ Total number of instructions: 10000000
+L2C Total Kernel Mode Instructions: 1558064 kernel misses: 13166 and MPKI: 8.45023
+ Total User Mode Instructions: 8441936 user misses: 33190 and MPKI: 3.93156
+L2C TOTAL     ACCESS:     857564  HIT:     775163  MISS:      82401  HIT %:    90.3913  MISS %:    9.60873   MPKI: 8.2401        
+L2C LOAD      ACCESS:     711418  HIT:     641650  MISS:      69768  HIT %:    90.1931  MISS %:    9.80689   MPKI: 6.9768        
+L2C DATA LOAD MPKI: 2.3412
+L2C INSTRUCTION LOAD MPKI: 4.6356
+L2C RFO       ACCESS:      54326  HIT:      42959  MISS:      11367  HIT %:    79.0763  MISS %:    20.9237   MPKI: 1.1367        
+L2C WRITEBACK ACCESS:      91382  HIT:      90366  MISS:       1016  HIT %:    98.8882  MISS %:    1.11182   MPKI: 0.1016        
+L2C LOAD TRANSLATION ACCESS:        438  HIT:        188  MISS:        250  HIT %:    42.9224  MISS %:    57.0776   MPKI: 0.025  
+L2C PREFETCH  REQUESTED:          0  ISSUED:          0  USEFUL:          0  USELESS:          0
+L2C USEFUL LOAD PREFETCHES:          0 PREFETCH ISSUED TO LOWER LEVEL:          0  ACCURACY: -nan
+L2C TIMELY PREFETCHES:          0 LATE PREFETCHES: 0 DROPPED PREFETCHES: 0
+L2C PREFETCHES SAME FILL-ORIGIN LEVEL: 0 DIFFERENT FILL-ORIGIN LEVEL: 0
+L2C AVERAGE MISS LATENCY: 38.2125 cycles
+L2C RQ  ACCESS:     766183      FORWARD:          0     MERGED:          0      TO_CACHE:     766182
+L2C WQ  ACCESS:      91382      FORWARD:          1     MERGED:          0      TO_CACHE:      91382
+
+L2C Instructions Evicting Data 18702
+L2C Translations Evicting Data 160
+L2C Data Evicting Data 16682
+L2C Instructions Evicting Instructions 27581
+L2C Translations Evicting Instructions 90
+L2C Data Evicting Instructions 17904
+L2C Instructions Evicting Translations 73
+L2C Translations Evicting Translations 0
+L2C Data Evicting Translations 193
+L2C Dense regions hint from L2: 0
+ Total number of instructions: 10000000
+PSCL5 TOTAL     ACCESS:        424  HIT:        424  MISS:          0  HIT %:        100  MISS %:          0   MPKI: 0
+PSCL5 LOAD TRANSLATION ACCESS:        424  HIT:        424  MISS:          0  HIT %:        100  MISS %:          0   MPKI: 0    
+PSCL5 PREFETCH  REQUESTED:          0  ISSUED:          0  USEFUL:          0  USELESS:          0
+PSCL5 USEFUL LOAD PREFETCHES:          0 PREFETCH ISSUED TO LOWER LEVEL:          0  ACCURACY: -nan
+PSCL5 TIMELY PREFETCHES:          0 LATE PREFETCHES: 0 DROPPED PREFETCHES: 0
+PSCL5 PREFETCHES SAME FILL-ORIGIN LEVEL: 0 DIFFERENT FILL-ORIGIN LEVEL: 0
+
+ Total number of instructions: 10000000
+PSCL4 TOTAL     ACCESS:        366  HIT:        366  MISS:          0  HIT %:        100  MISS %:          0   MPKI: 0
+PSCL4 LOAD TRANSLATION ACCESS:        366  HIT:        366  MISS:          0  HIT %:        100  MISS %:          0   MPKI: 0    
+PSCL4 PREFETCH  REQUESTED:          0  ISSUED:          0  USEFUL:          0  USELESS:          0
+PSCL4 USEFUL LOAD PREFETCHES:          0 PREFETCH ISSUED TO LOWER LEVEL:          0  ACCURACY: -nan
+PSCL4 TIMELY PREFETCHES:          0 LATE PREFETCHES: 0 DROPPED PREFETCHES: 0
+PSCL4 PREFETCHES SAME FILL-ORIGIN LEVEL: 0 DIFFERENT FILL-ORIGIN LEVEL: 0
+
+ Total number of instructions: 10000000
+PSCL3 TOTAL     ACCESS:        424  HIT:        424  MISS:          0  HIT %:        100  MISS %:          0   MPKI: 0
+PSCL3 LOAD TRANSLATION ACCESS:        424  HIT:        424  MISS:          0  HIT %:        100  MISS %:          0   MPKI: 0    
+PSCL3 PREFETCH  REQUESTED:          0  ISSUED:          0  USEFUL:          0  USELESS:          0
+PSCL3 USEFUL LOAD PREFETCHES:          0 PREFETCH ISSUED TO LOWER LEVEL:          0  ACCURACY: -nan
+PSCL3 TIMELY PREFETCHES:          0 LATE PREFETCHES: 0 DROPPED PREFETCHES: 0
+PSCL3 PREFETCHES SAME FILL-ORIGIN LEVEL: 0 DIFFERENT FILL-ORIGIN LEVEL: 0
+
+ Total number of instructions: 10000000
+PSCL2 TOTAL     ACCESS:        424  HIT:        410  MISS:         14  HIT %:    96.6981  MISS %:    3.30189   MPKI: 0.0014      
+PSCL2 LOAD TRANSLATION ACCESS:        424  HIT:        410  MISS:         14  HIT %:    96.6981  MISS %:    3.30189   MPKI: 0.0014
+PSCL2 PREFETCH  REQUESTED:          0  ISSUED:          0  USEFUL:          0  USELESS:          0
+PSCL2 USEFUL LOAD PREFETCHES:          0 PREFETCH ISSUED TO LOWER LEVEL:          0  ACCURACY: -nan
+PSCL2 TIMELY PREFETCHES:          0 LATE PREFETCHES: 0 DROPPED PREFETCHES: 0
+PSCL2 PREFETCHES SAME FILL-ORIGIN LEVEL: 0 DIFFERENT FILL-ORIGIN LEVEL: 0
+
+ Total number of instructions: 10000000
+LLC TOTAL     ACCESS:      99074  HIT:      93165  MISS:       5909  HIT %:    94.0358  MISS %:    5.96423   MPKI: 0.5909        
+LLC LOAD      ACCESS:      69768  HIT:      66712  MISS:       3056  HIT %:    95.6198  MISS %:    4.38023   MPKI: 0.3056        
+LLC RFO       ACCESS:      11367  HIT:       8534  MISS:       2833  HIT %:     75.077  MISS %:     24.923   MPKI: 0.2833        
+LLC WRITEBACK ACCESS:      17689  HIT:      17689  MISS:          0  HIT %:        100  MISS %:          0   MPKI: 0
+LLC LOAD TRANSLATION ACCESS:        250  HIT:        230  MISS:         20  HIT %:         92  MISS %:          8   MPKI: 0.002  
+LLC PREFETCH  REQUESTED:          0  ISSUED:          0  USEFUL:          0  USELESS:          0
+LLC USEFUL LOAD PREFETCHES:          0 PREFETCH ISSUED TO LOWER LEVEL:          0  ACCURACY: -nan
+LLC TIMELY PREFETCHES:          0 LATE PREFETCHES: 0 DROPPED PREFETCHES: 0
+LLC PREFETCHES SAME FILL-ORIGIN LEVEL: 0 DIFFERENT FILL-ORIGIN LEVEL: 0
+LLC AVERAGE MISS LATENCY: 118.773 cycles
+LLC RQ  ACCESS:      81385      FORWARD:          0     MERGED:          0      TO_CACHE:      81385
+LLC WQ  ACCESS:      17689      FORWARD:          0     MERGED:          0      TO_CACHE:      17689
+
+LLC Dense regions hint to LLC: 0
+
+RAW hits: 96309
+Loads Generated: 2487187
+Loads sent to L1D: 2390878
+Stores Generated: 1351778
+Stores sent to L1D: 1351783
+Major fault: 0 Minor fault: 1763
+Allocated PAGES: 1763
+
+DRAM Statistics
+ CHANNEL 0
+ RQ ROW_BUFFER_HIT:       3331  ROW_BUFFER_MISS:       2578
+ DBUS_CONGESTED:          0
+ WQ ROW_BUFFER_HIT:          5  ROW_BUFFER_MISS:        134  FULL:          0
+
+ AVG_CONGESTED_CYCLE: -
+ All warmup complete: 2
+Channel 0 Bank busy for read cycles: 0
+Channel 0 Bank busy for write cycles: 0
+Channel 0
+Rank 0
+0banks busy for read cycles: 23292175
+0banks busy for write cycles: 71
+1banks busy for read cycles: 279684
+1banks busy for write cycles: 11326
+2banks busy for read cycles: 29853
+2banks busy for write cycles: 1835
+3banks busy for read cycles: 13467
+3banks busy for write cycles: 2186
+4banks busy for read cycles: 10872
+4banks busy for write cycles: 903
+5banks busy for read cycles: 4097
+5banks busy for write cycles: 846
+6banks busy for read cycles: 4236
+6banks busy for write cycles: 149
+7banks busy for read cycles: 4113
+7banks busy for write cycles: 2
+8banks busy for read cycles: 6910
+8banks busy for write cycles: 143
+
+CPU 0 Branch Prediction Accuracy: 91.9011% MPKI: 14.8448 Average ROB Occupancy at Mispredict: 18.0854
+Branch types
+NOT_BRANCH: 8166678 81.6668%
+BRANCH_DIRECT_JUMP: 113688 1.13688%
+BRANCH_INDIRECT: 39584 0.39584%
+BRANCH_CONDITIONAL: 1263475 12.6348%
+BRANCH_DIRECT_CALL: 175797 1.75797%
+BRANCH_INDIRECT_CALL: 32306 0.32306%
+BRANCH_RETURN: 208101 2.08101%
+BRANCH_OTHER: 0 0%
+
+DRAM PAGES: 1048576
+Allocated PAGES: 1763
+arohanh@LAPTOP-9PGAITT6:/mnt/c/Users/Admin/Desktop/3rd Year/CS683/Research_Project/Champsim/CS683_Project$ 

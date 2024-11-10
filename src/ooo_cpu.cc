@@ -406,7 +406,7 @@ void O3_CPU::read_from_trace()
 		if (IFETCH_BUFFER.occupancy < IFETCH_BUFFER.SIZE) {
             //Arohan Hazarika
             //if(arch_instr.instr_id>=9145 && arch_instr.instr_id<=9155)
-                outfile << "The instruction id of current instruction fetched is " << arch_instr.instr_id << " and the instruction pointer (PC) is " << arch_instr.ip << " and " << (uint64_t)arch_instr.is_branch << " " << (uint64_t)arch_instr.branch_taken << " and the type of branch is " << (uint64_t)arch_instr.branch_type << std::endl;
+             //   outfile << "The instruction id of current instruction fetched is " << arch_instr.instr_id << " and the instruction pointer (PC) is " << arch_instr.ip << " and " << (uint64_t)arch_instr.is_branch << " " << (uint64_t)arch_instr.branch_taken << " and the type of branch is " << (uint64_t)arch_instr.branch_type << std::endl;
             //cout << "The instruction id of current instruction fetched is " << arch_instr.instr_id << " and the instruction pointer (PC) is " << arch_instr.ip  << " and " << (uint64_t)arch_instr.is_branch << " " << (uint64_t)arch_instr.branch_taken << std::endl;
             //Arohan Hazarika
 			uint32_t ifetch_buffer_index = add_to_ifetch_buffer(&arch_instr);
