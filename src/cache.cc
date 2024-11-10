@@ -11,6 +11,7 @@
 #include <ctime>     // For time()
 
 #define THRESHOLD_ACCESSES 10000
+#define THRESHOLD_FOR_MISSES 0.25
 //Arohan
 
 uint64_t l2pf_access = 0;
@@ -78,7 +79,13 @@ void CACHE::handle_fill()
                                 minimum=num_of_kernel_access_set_wise[fill_cpu][i]+num_of_user_access_set_wise[fill_cpu][i];
                             }
                         }
-                        set_mappings_kernel[set]=minimum_set;
+                        int total=num_of_kernel_access_set_wise[fill_cpu][set]+num_of_user_access_set_wise[fill_cpu][set];
+                        if((total-minimum)>THRESHOLD_FOR_MISSES*total){
+                            set_mappings_kernel[set]=minimum_set;
+                        }
+                        else{
+                            set_mappings_kernel.erase(set);
+                        }
                         num_of_kernel_access_set_wise[fill_cpu][set]=0;
                     }
                 }
@@ -92,7 +99,13 @@ void CACHE::handle_fill()
                                 minimum=num_of_user_access_set_wise[fill_cpu][i]+num_of_kernel_access_set_wise[fill_cpu][i];
                             }
                         }
-                        set_mappings_user[set]=minimum_set;
+                        int total=num_of_kernel_access_set_wise[fill_cpu][set]+num_of_user_access_set_wise[fill_cpu][set];
+                        if((total-minimum)>THRESHOLD_FOR_MISSES*total){
+                            set_mappings_user[set]=minimum_set;
+                        }
+                        else{
+                            set_mappings_user.erase(set);
+                        }
                         num_of_user_access_set_wise[fill_cpu][set]=0;
                     }
                 }
@@ -108,7 +121,13 @@ void CACHE::handle_fill()
                                 minimum=num_of_kernel_access_set_wise[fill_cpu][i]+num_of_user_access_set_wise[fill_cpu][i];
                             }
                         }
-                        set_mappings_kernel[set]=minimum_set;
+                        int total=num_of_kernel_access_set_wise[fill_cpu][set]+num_of_user_access_set_wise[fill_cpu][set];
+                        if((total-minimum)>THRESHOLD_FOR_MISSES*total){
+                            set_mappings_kernel[set]=minimum_set;
+                        }
+                        else{
+                            set_mappings_kernel.erase(set);
+                        }
                         num_of_kernel_access_set_wise[fill_cpu][set]=0;
                     }
                     if(set_mappings_kernel.find(set)==set_mappings_kernel.end()){
@@ -131,7 +150,13 @@ void CACHE::handle_fill()
                                 minimum=num_of_user_access_set_wise[fill_cpu][i]+num_of_kernel_access_set_wise[fill_cpu][i];
                             }
                         }
-                        set_mappings_user[set]=minimum_set;
+                        int total=num_of_kernel_access_set_wise[fill_cpu][set]+num_of_user_access_set_wise[fill_cpu][set];
+                        if((total-minimum)>THRESHOLD_FOR_MISSES*total){
+                            set_mappings_user[set]=minimum_set;
+                        }
+                        else{
+                            set_mappings_user.erase(set);
+                        }
                         num_of_user_access_set_wise[fill_cpu][set]=0;
                     }
                     if(set_mappings_user.find(set)==set_mappings_user.end()){
